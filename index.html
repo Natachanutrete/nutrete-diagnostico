@@ -1522,7 +1522,10 @@ async function cargarEncuestas() {
       </td>
       <td>—</td>
       <td><span class="semaforo ${enc.activa ? 'verde' : 'rojo'}">${enc.activa ? 'Activa' : 'Cerrada'}</span></td>
-      <td><button class="btn btn-outline btn-pequeño" onclick="cerrarEncuesta('${enc.id}')">Cerrar</button></td>
+      <td><div style="display:flex;gap:6px;">
+        <button class="btn btn-outline btn-pequeño" onclick="cerrarEncuesta('${enc.id}')">Cerrar</button>
+        <button class="btn btn-rojo btn-pequeño" onclick="eliminarEncuesta('${enc.id}')">Eliminar</button>
+      </div></td>
     </tr>`;
   }).join('');
 
@@ -1953,6 +1956,14 @@ async function completarEvaluacion(id) {
   await sb.from('evaluaciones').update({ estado: 'completada' }).eq('id', id);
   mostrarToast('Evaluación marcada como completada');
   await cargarEvaluaciones();
+}
+
+async function eliminarEncuesta(id) {
+  if (!confirm('¿Eliminar esta encuesta y todas sus respuestas? Esta acción no se puede deshacer.')) return;
+  await sb.from('respuestas_encuesta').delete().eq('encuesta_id', id);
+  await sb.from('encuestas').delete().eq('id', id);
+  mostrarToast('Encuesta eliminada');
+  await cargarEncuestas();
 }
 
 async function cerrarEncuesta(id) {
