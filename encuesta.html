@@ -428,33 +428,233 @@ function mostrarFormColaborador(token, encuestaId, empresa) {
 function mostrarFormGerencia(token, encuestaId, empresa) {
   document.getElementById('contenido').innerHTML = `
 
+    <div class="card" style="background:#f0f7f3; border-color:#c8ebd5; margin-bottom:20px;">
+      <div style="font-size:14px; color:var(--verde-oscuro); line-height:1.7;">
+        Este diagnóstico es confidencial y será utilizado exclusivamente por Nútrete para diseñar un programa de bienestar a la medida de su organización. No hay respuestas correctas o incorrectas.
+      </div>
+    </div>
+
+    <!-- A. DATOS DE LA EMPRESA -->
     <div class="card">
-      <div class="seccion-label">Diagnóstico organizacional</div>
+      <div class="seccion-label">A. Datos de la empresa</div>
 
       <div class="pregunta-bloque">
-        <div class="pregunta-texto">¿Cuántos colaboradores tiene la empresa aproximadamente?</div>
+        <div class="pregunta-texto">Número aproximado de trabajadores</div>
         <div class="opciones-radio">
-          ${radio('num_colaboradores', ['Menos de 30','30-100','100-300','Más de 300'])}
+          ${radio('num_trabajadores', ['Menos de 30','30–100','101–300','301–500','Más de 500'])}
         </div>
       </div>
 
       <div class="pregunta-bloque">
-        <div class="pregunta-texto">¿Han realizado programas de bienestar antes?</div>
+        <div class="pregunta-texto">Número de centros, sedes o faenas</div>
         <div class="opciones-radio">
-          ${radio('programas_prev', ['Sí, con buenos resultados','Sí, pero sin resultados claros','No, nunca','Estamos evaluando hacerlo'])}
+          ${radio('num_centros', ['1 (única sede)','2–3','4–10','Más de 10'])}
         </div>
       </div>
 
       <div class="pregunta-bloque">
-        <div class="pregunta-texto">¿Cuáles son las principales problemáticas de salud que reportan los colaboradores? (puedes marcar varias)</div>
+        <div class="pregunta-texto">Tipo de jornada predominante</div>
         <div class="opciones-radio">
-          ${checkbox('problematicas', [
-            ['Estrés y agotamiento','Estrés y agotamiento'],
-            ['Problemas de alimentación','Problemas de alimentación'],
-            ['Sedentarismo','Sedentarismo'],
-            ['Problemas de sueño','Problemas de sueño'],
-            ['Enfermedades crónicas','Enfermedades crónicas (hipertensión, diabetes, etc.)'],
-            ['No tenemos datos claros','No tenemos datos claros'],
+          ${radio('tipo_jornada', ['Jornada diurna fija','Jornada flexible o híbrida','Trabajo remoto','Turnos rotativos','Mixta'])}
+        </div>
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">¿Existen trabajadores en sistema de turnos?</div>
+        <div class="opciones-radio">
+          ${radio('tiene_turnos', ['Sí, la mayoría trabaja en turnos','Sí, algunos trabajadores trabajan en turnos','No'])}
+        </div>
+      </div>
+    </div>
+
+    <!-- 1. ESTRATEGIA DE BIENESTAR -->
+    <div class="card">
+      <div class="seccion-label">1. Estrategia de bienestar</div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">¿La empresa cuenta actualmente con una estrategia o programa de bienestar?</div>
+        <div class="opciones-radio">
+          ${radio('tiene_estrategia', ['Sí, con programa estructurado y presupuesto','Sí, pero de forma puntual o sin estructura clara','No, pero está en los planes','No'])}
+        </div>
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">¿Qué áreas aborda actualmente? (puedes marcar varias)</div>
+        <div class="opciones-radio">
+          ${checkbox('areas_bienestar', [
+            ['nutricion','Nutrición y alimentación'],
+            ['actividad_fisica','Actividad física'],
+            ['salud_mental','Salud mental'],
+            ['sueno','Sueño y descanso'],
+            ['prevencion','Prevención de enfermedades'],
+            ['ergonomia','Ergonomía'],
+            ['ninguna','Ninguna actualmente'],
+          ])}
+        </div>
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">¿Con qué frecuencia realizan actividades de bienestar?</div>
+        <div class="opciones-radio">
+          ${radio('frecuencia_bienestar', ['Más de una vez al mes','Una vez al mes','Cada 2–3 meses','Una o dos veces al año','No realizamos actividades regulares'])}
+        </div>
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">¿Existe un presupuesto destinado a bienestar?</div>
+        <div class="opciones-radio">
+          ${radio('presupuesto', ['Sí, presupuesto definido y aprobado','Sí, pero variable según disponibilidad','No, se gestiona caso a caso','No existe presupuesto actualmente'])}
+        </div>
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">¿Quién lidera las iniciativas de bienestar?</div>
+        <div class="opciones-radio">
+          ${radio('lider_bienestar', ['RRHH / Personas','Calidad de Vida / Bienestar','Prevención de Riesgos','Gerencia General','No hay un responsable definido'])}
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. PARTICIPACIÓN -->
+    <div class="card">
+      <div class="seccion-label">2. Participación de los trabajadores</div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">¿Cuál ha sido aproximadamente la participación en actividades anteriores?</div>
+        <div class="opciones-radio">
+          ${radio('participacion_prev', ['Menos del 25%','25–50%','50–75%','Más del 75%','No hemos medido la participación'])}
+        </div>
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">¿Qué tipo de actividades tienen mayor participación? (puedes marcar varias)</div>
+        <div class="opciones-radio">
+          ${checkbox('actividades_populares', [
+            ['talleres','Talleres o charlas'],
+            ['evaluaciones','Evaluaciones de salud'],
+            ['deportivas','Actividades deportivas o recreativas'],
+            ['online','Actividades online o e-learning'],
+            ['beneficios','Beneficios o convenios'],
+            ['no_sabemos','No lo sabemos con claridad'],
+          ])}
+        </div>
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">¿Existen diferencias importantes de participación entre áreas, cargos o turnos?</div>
+        <div class="opciones-radio">
+          ${radio('diferencias_participacion', ['Sí, hay diferencias relevantes','Algunas diferencias menores','No, la participación es homogénea','No lo hemos analizado'])}
+        </div>
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">¿Qué dificultades encuentran para lograr participación? (puedes marcar varias)</div>
+        <div class="opciones-radio">
+          ${checkbox('dificultades_participacion', [
+            ['horarios','Horarios o turnos incompatibles'],
+            ['distancia','Distancia o acceso geográfico'],
+            ['motivacion','Baja motivación o interés'],
+            ['comunicacion','Falta de comunicación o difusión'],
+            ['tiempo','Falta de tiempo durante la jornada'],
+            ['cultura','Cultura organizacional poco receptiva'],
+            ['ninguna','No hemos tenido dificultades relevantes'],
+          ])}
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. NECESIDADES PERCIBIDAS -->
+    <div class="card">
+      <div class="seccion-label">3. Necesidades percibidas</div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">¿Cuáles considera que son las principales necesidades de bienestar de sus trabajadores? <span class="opcional-badge">máximo 3</span></div>
+        <div class="opciones-radio">
+          ${checkbox('necesidades_percibidas', [
+            ['alimentacion','Alimentación saludable'],
+            ['sobrepeso','Sobrepeso y obesidad'],
+            ['actividad_fisica','Actividad física'],
+            ['sueno','Sueño y descanso'],
+            ['estres','Estrés'],
+            ['salud_mental','Salud mental'],
+            ['fatiga','Fatiga'],
+            ['salud_digestiva','Salud digestiva'],
+            ['hidratacion','Hidratación'],
+            ['cardiovascular','Salud cardiovascular'],
+            ['tabaquismo','Tabaquismo / alcohol'],
+            ['piel','Salud de la piel'],
+            ['otro','Otro'],
+          ])}
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. ENTORNO LABORAL -->
+    <div class="card">
+      <div class="seccion-label">4. Condiciones del entorno laboral</div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">¿Existen casinos o comedores en las instalaciones?</div>
+        <div class="opciones-radio">
+          ${radio('tiene_casino', ['Sí, con servicio de alimentación completo','Sí, solo sala de almuerzo o kitchenette','No'])}
+        </div>
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">¿Qué disponibilidad de alimentos saludables existe?</div>
+        <div class="opciones-radio">
+          ${radio('disponibilidad_saludable', ['Buena — opciones variadas y saludables','Regular — hay opciones pero limitadas','Baja — predominan alimentos ultraprocesados','No aplica'])}
+        </div>
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">¿Existen pausas activas o descansos durante la jornada?</div>
+        <div class="opciones-radio">
+          ${radio('pausas_activas', ['Sí, están institucionalizadas','Sí, pero depende del área o jefe','Raramente','No'])}
+        </div>
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">¿Hay acceso a agua potable en todos los espacios de trabajo?</div>
+        <div class="opciones-radio">
+          ${radio('acceso_agua', ['Sí, en todos los espacios','Sí, en la mayoría','Acceso limitado','No'])}
+        </div>
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">¿Existen espacios para actividad física o descanso?</div>
+        <div class="opciones-radio">
+          ${radio('espacios_deporte', ['Sí, instalaciones propias','Sí, convenio con gimnasio o centro deportivo','No, pero está en los planes','No'])}
+        </div>
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">¿Existen dificultades particulares asociadas al trabajo por turnos?</div>
+        <div class="opciones-radio">
+          ${radio('dificultades_turnos', ['Sí, es una problemática relevante','Algunas dificultades menores','No tenemos problemas relevantes','No aplica — no hay trabajo por turnos'])}
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. PERCEPCIÓN DE RRHH -->
+    <div class="card">
+      <div class="seccion-label">5. Percepción y objetivos de RRHH</div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">¿Qué indicadores de bienestar les gustaría mejorar en los próximos 12 meses? (puedes marcar varias)</div>
+        <div class="opciones-radio">
+          ${checkbox('indicadores_mejorar', [
+            ['participacion','Participación en actividades'],
+            ['habitos','Hábitos saludables de los trabajadores'],
+            ['satisfaccion','Satisfacción de los trabajadores'],
+            ['estres','Estrés laboral'],
+            ['fatiga','Fatiga y agotamiento'],
+            ['ausentismo','Ausentismo y licencias médicas'],
+            ['clima','Clima laboral'],
+            ['engagement','Engagement y compromiso'],
+            ['productividad','Productividad'],
+            ['retencion','Retención de talentos'],
+            ['otro','Otro'],
           ])}
         </div>
       </div>
@@ -462,34 +662,59 @@ function mostrarFormGerencia(token, encuestaId, empresa) {
       <div class="pregunta-bloque">
         <div class="pregunta-texto">¿Tienen datos de ausentismo o licencias médicas frecuentes?</div>
         <div class="opciones-radio">
-          ${radio('ausentismo', ['Sí, es un problema relevante','Algunos casos aislados','No tenemos datos','Tenemos datos pero son bajos'])}
+          ${radio('ausentismo', ['Sí, es un problema relevante','Algunos casos aislados','Tenemos datos pero son bajos','No tenemos datos claros'])}
         </div>
       </div>
 
       <div class="pregunta-bloque">
-        <div class="pregunta-texto">¿Cuál es el presupuesto aproximado disponible para bienestar este año?</div>
+        <div class="pregunta-texto">¿Cómo sabrían que un programa de bienestar fue exitoso? (texto libre)</div>
+        <textarea name="exito_bienestar" id="exito_bienestar" style="width:100%;padding:10px 12px;border:1.5px solid var(--gris-borde);border-radius:8px;font-size:14px;font-family:inherit;resize:vertical;min-height:80px;margin-top:8px;" placeholder="Describa qué resultados o cambios esperaría observar..."></textarea>
+      </div>
+    </div>
+
+    <!-- 6. MEDICIÓN ACTUAL -->
+    <div class="card">
+      <div class="seccion-label">6. Medición actual</div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">¿La empresa mide actualmente indicadores relacionados con bienestar?</div>
         <div class="opciones-radio">
-          ${radio('presupuesto', ['Menos de $500.000 CLP','$500.000 - $2.000.000 CLP','$2.000.000 - $5.000.000 CLP','Más de $5.000.000 CLP','Aún no está definido'])}
+          ${radio('mide_bienestar', ['Sí, con indicadores formales y regulares','Sí, pero de forma informal o esporádica','No medimos actualmente'])}
         </div>
       </div>
 
       <div class="pregunta-bloque">
-        <div class="pregunta-texto">¿Qué resultados esperan de un programa de bienestar? (puedes marcar varias)</div>
+        <div class="pregunta-texto">¿Qué indicadores miden actualmente? (puedes marcar varias)</div>
         <div class="opciones-radio">
-          ${checkbox('resultados_esperados', [
-            ['Reducir ausentismo','Reducir ausentismo y licencias médicas'],
-            ['Mejorar el clima laboral','Mejorar el clima laboral'],
-            ['Cumplir exigencias legales','Cumplir exigencias legales o contractuales'],
-            ['Mejorar la productividad','Mejorar la productividad'],
-            ['Fidelizar a los colaboradores','Fidelizar y retener a los colaboradores'],
-            ['Todos los anteriores','Todos los anteriores'],
+          ${checkbox('indicadores_actuales', [
+            ['ausentismo','Ausentismo'],
+            ['licencias','Licencias médicas'],
+            ['satisfaccion','Encuestas de satisfacción'],
+            ['clima','Clima organizacional'],
+            ['accidentabilidad','Accidentabilidad'],
+            ['rotacion','Rotación de personal'],
+            ['ningunos','No medimos indicadores de bienestar'],
           ])}
+        </div>
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">¿Han realizado evaluaciones de salud o hábitos anteriormente?</div>
+        <div class="opciones-radio">
+          ${radio('eval_prev', ['Sí, con resultados documentados','Sí, pero sin resultados formales','No hemos realizado evaluaciones'])}
+        </div>
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">¿Tienen resultados históricos para comparar?</div>
+        <div class="opciones-radio">
+          ${radio('tiene_historicos', ['Sí, datos de al menos 1 año','Algunos datos parciales','No tenemos datos históricos'])}
         </div>
       </div>
     </div>
 
     <button class="btn-enviar" id="btn-enviar" onclick="enviarGerencia('${encuestaId}')">
-      Enviar respuestas
+      Enviar diagnóstico
     </button>
   `;
 }
@@ -548,14 +773,43 @@ async function enviarGerencia(encuestaId) {
 
   const getRadio = (name) => document.querySelector(`input[name="${name}"]:checked`)?.value || null;
   const getCheck = (name) => [...document.querySelectorAll(`input[name="${name}"]:checked`)].map(i => i.value);
+  const getText = (id) => document.getElementById(id)?.value?.trim() || null;
 
   const datos = {
-    num_colaboradores: getRadio('num_colaboradores'),
-    programas_prev: getRadio('programas_prev'),
-    problematicas: getCheck('problematicas'),
-    ausentismo: getRadio('ausentismo'),
+    // A. Empresa
+    num_trabajadores: getRadio('num_trabajadores'),
+    num_centros: getRadio('num_centros'),
+    tipo_jornada: getRadio('tipo_jornada'),
+    tiene_turnos: getRadio('tiene_turnos'),
+    // 1. Estrategia
+    tiene_estrategia: getRadio('tiene_estrategia'),
+    areas_bienestar: getCheck('areas_bienestar'),
+    frecuencia_bienestar: getRadio('frecuencia_bienestar'),
     presupuesto: getRadio('presupuesto'),
-    resultados_esperados: getCheck('resultados_esperados'),
+    lider_bienestar: getRadio('lider_bienestar'),
+    // 2. Participación
+    participacion_prev: getRadio('participacion_prev'),
+    actividades_populares: getCheck('actividades_populares'),
+    diferencias_participacion: getRadio('diferencias_participacion'),
+    dificultades_participacion: getCheck('dificultades_participacion'),
+    // 3. Necesidades
+    necesidades_percibidas: getCheck('necesidades_percibidas'),
+    // 4. Entorno
+    tiene_casino: getRadio('tiene_casino'),
+    disponibilidad_saludable: getRadio('disponibilidad_saludable'),
+    pausas_activas: getRadio('pausas_activas'),
+    acceso_agua: getRadio('acceso_agua'),
+    espacios_deporte: getRadio('espacios_deporte'),
+    dificultades_turnos: getRadio('dificultades_turnos'),
+    // 5. RRHH
+    indicadores_mejorar: getCheck('indicadores_mejorar'),
+    ausentismo: getRadio('ausentismo'),
+    exito_bienestar: getText('exito_bienestar'),
+    // 6. Medición
+    mide_bienestar: getRadio('mide_bienestar'),
+    indicadores_actuales: getCheck('indicadores_actuales'),
+    eval_prev: getRadio('eval_prev'),
+    tiene_historicos: getRadio('tiene_historicos'),
   };
 
   const { error } = await sb.from('respuestas_encuesta').insert({
@@ -565,7 +819,7 @@ async function enviarGerencia(encuestaId) {
 
   if (error) {
     btn.disabled = false;
-    btn.textContent = 'Enviar respuestas';
+    btn.textContent = 'Enviar diagnóstico';
     alert('Hubo un error al enviar. Intenta de nuevo.');
     return;
   }
