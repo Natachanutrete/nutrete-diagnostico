@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Encuesta de Bienestar — Nútrete</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="scoring.js"></script>
 <style>
   :root {
     --verde: #009444;
@@ -1220,6 +1221,23 @@ async function enviarColaborador(encuestaId) {
     btn.textContent = 'Enviar respuestas';
     alert('Hubo un error al enviar. Intenta de nuevo.');
     return;
+  }
+
+  // Calcular scoring individual con Motor Nútrete® (silencioso)
+  if (typeof NutreteScoring !== 'undefined') {
+    try {
+      const scoringIndividual = {
+        IBP: NutreteScoring.Dimensiones.bienestarPercibido(datos),
+        IA:  NutreteScoring.Dimensiones.alimentacion(datos),
+        IM:  NutreteScoring.Dimensiones.movimiento(datos),
+        IR:  NutreteScoring.Dimensiones.recuperacion(datos),
+        IV:  NutreteScoring.Dimensiones.vitalidad(datos),
+        IER: NutreteScoring.Dimensiones.estresRecursos(datos),
+        IES: NutreteScoring.Dimensiones.entornoSaludable(datos),
+      };
+      const ibin = NutreteScoring.calcularIBIN(scoringIndividual);
+      console.log('Scoring Nútrete® calculado:', { ...scoringIndividual, IBIN: ibin });
+    } catch(e) { /* silencioso */ }
   }
 
   mostrarGracias();

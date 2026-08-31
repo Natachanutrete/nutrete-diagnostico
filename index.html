@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Nútrete Diagnóstico</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="scoring.js"></script>
 <style>
   :root {
     --verde: #009444;
@@ -1360,6 +1361,118 @@ function construirTabs() {
   ).join('');
 }
 
+function renderScoringCompleto(scoring, empresa) {
+  if (!scoring) return '<div class="empty-state"><p>No hay suficientes datos para calcular el scoring.</p></div>';
+
+  const { ibin, nivelIBIN, dimensiones, dimensionesOrdenadas, topIntervenciones, textoIBIN, n } = scoring;
+
+  const coloresNivel = {
+    verde:    { color: '#07542F', fondo: '#e8f5ee', borde: '#c8ebd5', texto: 'Fortaleza' },
+    amarillo: { color: '#a05a00', fondo: '#fef3e8', borde: '#f5d89a', texto: 'Oportunidad' },
+    rojo:     { color: '#c0392b', fondo: '#fdf0ee', borde: '#f5c6c0', texto: 'Brecha' },
+    sin_datos:{ color: '#aaa',    fondo: '#f0f0f0', borde: '#ddd',    texto: 'Sin datos' },
+  };
+
+  const colorPrioridad = {
+    CRÍTICA: { color: '#c0392b', fondo: '#fdf0ee' },
+    ALTA:    { color: '#a05a00', fondo: '#fff3e0' },
+    MEDIA:   { color: '#7d6608', fondo: '#fef9e7' },
+    BAJA:    { color: '#07542F', fondo: '#e8f5ee' },
+  };
+
+  // ── Score global IBIN ──
+  const cn = coloresNivel[nivelIBIN] || coloresNivel.sin_datos;
+  const ibinSection = `
+    <div style="background:var(--verde-oscuro);border-radius:12px;padding:28px;margin-bottom:20px;">
+      <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#7fc89a;margin-bottom:6px;">Motor Nútrete® · IBIN — Índice de Bienestar Integral</div>
+      <div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap;">
+        <div style="text-align:center;">
+          <div style="font-size:60px;font-weight:800;color:white;line-height:1;">${ibin ?? '—'}</div>
+          <div style="font-size:11px;color:#a8d5b8;margin-top:4px;">/ 100 · ${n} respuestas</div>
+        </div>
+        <div style="flex:1;min-width:200px;">
+          <div style="font-size:17px;font-weight:700;color:white;margin-bottom:10px;">${empresa}</div>
+          <div style="height:10px;background:rgba(255,255,255,0.2);border-radius:5px;overflow:hidden;margin-bottom:10px;">
+            <div style="width:${ibin||0}%;height:100%;background:#7fc89a;border-radius:5px;transition:width 1s;"></div>
+          </div>
+          <p style="font-size:13px;color:#a8d5b8;line-height:1.65;margin:0;">${textoIBIN || ''}</p>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;min-width:200px;">
+          ${['verde','amarillo','rojo'].map(n => {
+            const count = dimensiones.filter(d => d.nivel === n).length;
+            const labels = { verde:'Fortalezas', amarillo:'Oportunidades', rojo:'Brechas' };
+            const colors = { verde:'#7fc89a', amarillo:'#f5d89a', rojo:'#f5a89a' };
+            return `<div style="background:rgba(255,255,255,0.12);border-radius:8px;padding:10px;text-align:center;">
+              <div style="font-size:22px;font-weight:800;color:${colors[n]};">${count}</div>
+              <div style="font-size:10px;color:${colors[n]};">${labels[n]}</div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+    </div>`;
+
+  // ── Top intervenciones ──
+  const intervencionesSection = topIntervenciones.length ? `
+    <div style="background:#fff8f0;border:1px solid #f5d89a;border-radius:10px;padding:20px;margin-bottom:20px;">
+      <div style="font-size:12px;font-weight:700;color:#a05a00;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:14px;">▶ Intervenciones prioritarias recomendadas</div>
+      ${topIntervenciones.map((d, i) => `
+        <div style="display:flex;gap:14px;padding:12px 0;border-bottom:1px solid #f5d89a;${i===topIntervenciones.length-1?'border-bottom:none;':''}">
+          <div style="font-size:22px;flex-shrink:0;">${d.icono}</div>
+          <div style="flex:1;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+              <span style="font-size:14px;font-weight:700;color:var(--texto);">${d.nombre}</span>
+              <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:${colorPrioridad[d.prioridad.nivel]?.fondo};color:${colorPrioridad[d.prioridad.nivel]?.color};">${d.prioridad.nivel}</span>
+              <span style="font-size:11px;color:var(--texto-suave);">Score: ${d.score}/100 · Interés: ${d.interes}%</span>
+            </div>
+            <div style="font-size:13px;font-weight:600;color:var(--verde-oscuro);margin-bottom:2px;">${d.recomendacion.titulo}</div>
+            <div style="font-size:13px;color:var(--texto-suave);">${d.recomendacion.desc}</div>
+          </div>
+        </div>`).join('')}
+    </div>` : '';
+
+  // ── 7 Dimensiones ──
+  const dimensionesSection = `
+    <div style="font-size:12px;font-weight:700;color:var(--verde-oscuro);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:14px;padding-bottom:6px;border-bottom:1px solid var(--gris-borde);">Las 7 dimensiones Nútrete® · ${scoring.n} respuestas</div>
+    ${dimensionesOrdenadas.map(d => {
+      const cn = coloresNivel[d.nivel] || coloresNivel.sin_datos;
+      const cp = colorPrioridad[d.prioridad.nivel] || {};
+      return `
+        <div style="background:white;border-radius:10px;border:1px solid var(--gris-borde);padding:18px 20px;margin-bottom:12px;">
+          <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:10px;">
+            <div style="font-size:22px;flex-shrink:0;margin-top:2px;">${d.icono}</div>
+            <div style="flex:1;">
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
+                <span style="font-size:14px;font-weight:700;color:var(--texto);">${d.nombre}</span>
+                <span style="font-size:10px;font-weight:700;color:#aaa;">${d.codigo} · ${d.preguntas}</span>
+                <span style="margin-left:auto;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:${cp.fondo};color:${cp.color};">${d.prioridad.nivel}</span>
+              </div>
+              <div style="font-size:12px;color:var(--texto-suave);">${d.descripcion}</div>
+            </div>
+            <div style="text-align:right;flex-shrink:0;margin-left:8px;">
+              <div style="font-size:28px;font-weight:800;color:${cn.color};">${d.score ?? '—'}</div>
+              <div style="font-size:10px;padding:2px 8px;border-radius:20px;background:${cn.fondo};color:${cn.color};font-weight:700;">${cn.texto}</div>
+            </div>
+          </div>
+          <div style="height:8px;background:#f0f0f0;border-radius:4px;overflow:hidden;margin-bottom:10px;">
+            <div style="width:${d.score||0}%;height:100%;background:${cn.color};border-radius:4px;transition:width 0.8s;"></div>
+          </div>
+          <div style="display:flex;gap:16px;font-size:12px;margin-bottom:10px;">
+            <div style="background:var(--gris-claro);border-radius:6px;padding:6px 12px;">
+              <span style="color:var(--texto-suave);">Interés del equipo: </span>
+              <strong style="color:${d.interes>=50?'#07542F':d.interes>=25?'#a05a00':'#aaa'};">${d.interes}%</strong>
+            </div>
+            <div style="background:var(--gris-claro);border-radius:6px;padding:6px 12px;">
+              <span style="color:var(--texto-suave);">Brecha: </span>
+              <strong style="color:${d.prioridad.nivelBrecha==='alta'?'#c0392b':d.prioridad.nivelBrecha==='media'?'#a05a00':'#07542F'};">${d.prioridad.nivelBrecha}</strong>
+            </div>
+          </div>
+          ${d.textoDx ? `<p style="font-size:13px;color:var(--texto-suave);line-height:1.65;margin:0;border-top:1px solid var(--gris-borde);padding-top:10px;">${d.textoDx}</p>` : ''}
+        </div>`;
+    }).join('')}`;
+
+  return ibinSection + intervencionesSection + dimensionesSection;
+}
+
 function cambiarSubtab(id) {
   ['scoring','diagnostico'].forEach(t => {
     document.getElementById(`sub-${t}`).style.display = t === id ? 'block' : 'none';
@@ -1391,8 +1504,8 @@ async function ejecutarMotorScoring() {
     try { return JSON.parse(r.autopercepcion_salud || '{}'); } catch(e) { return {}; }
   });
 
-  const scoring = calcularScoring(datos);
-  resultado.innerHTML = `<div class="card">${renderScoring(scoring, empresa)}</div>`;
+  const scoring = NutreteScoring.calcularScoringCompleto(datos);
+  resultado.innerHTML = `<div class="card">${renderScoringCompleto(scoring, empresa)}</div>`;
 }
 
 function cambiarTab(id) {
