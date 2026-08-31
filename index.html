@@ -1637,60 +1637,92 @@ function mostrarResultadosGerencia(respuestas) {
 
   if (!respuestas.length) { cont.innerHTML = '<p>Sin respuestas.</p>'; return; }
 
-  // Tomar la última respuesta (gerencia suele ser una sola)
   const r = respuestas[respuestas.length - 1];
-  let datos = {};
-  try { datos = JSON.parse(r.autopercepcion_salud || '{}'); } catch(e) {}
+  let d = {};
+  try { d = JSON.parse(r.autopercepcion_salud || '{}'); } catch(e) {}
 
-  const fila = (label, valor) => valor ? `
-    <div style="padding:10px 0;border-bottom:1px solid var(--gris-borde);display:flex;gap:16px;">
-      <div style="font-size:13px;font-weight:600;color:var(--texto-suave);min-width:220px;">${label}</div>
-      <div style="font-size:14px;color:var(--texto);">${Array.isArray(valor) ? valor.join(', ') : valor}</div>
-    </div>` : '';
+  const seccion = (titulo) => `<div style="font-size:13px;font-weight:700;color:var(--verde-oscuro);text-transform:uppercase;letter-spacing:0.5px;margin:24px 0 10px;padding-bottom:6px;border-bottom:2px solid var(--verde);">${titulo}</div>`;
+
+  const fila = (label, valor) => {
+    if (!valor || (Array.isArray(valor) && !valor.length)) return '';
+    const txt = Array.isArray(valor) ? valor.join(', ') : valor;
+    return `<div style="padding:9px 0;border-bottom:1px solid var(--gris-borde);display:flex;gap:16px;align-items:baseline;">
+      <div style="font-size:12px;font-weight:600;color:var(--texto-suave);min-width:240px;flex-shrink:0;">${label}</div>
+      <div style="font-size:14px;color:var(--texto);">${txt}</div>
+    </div>`;
+  };
+
+  const escala = (label, val) => val ? `<div style="padding:9px 0;border-bottom:1px solid var(--gris-borde);display:flex;gap:16px;align-items:center;">
+    <div style="font-size:12px;font-weight:600;color:var(--texto-suave);min-width:240px;flex-shrink:0;">${label}</div>
+    <div style="display:flex;gap:6px;">${[1,2,3,4,5].map(n=>`<span style="width:28px;height:28px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;background:${n===val?'var(--verde)':'var(--gris-borde)'};color:${n===val?'white':'var(--texto-suave)'};">${n}</span>`).join('')}</div>
+  </div>` : '';
 
   cont.innerHTML = `
-    <div style="font-size:12px;color:var(--texto-suave);margin-bottom:20px;">${respuestas.length} respuesta(s) recibida(s)</div>
+    <div style="font-size:12px;color:var(--texto-suave);margin-bottom:4px;">${respuestas.length} respuesta(s) recibida(s)</div>
 
-    <div style="font-size:13px;font-weight:700;color:var(--verde-oscuro);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">A. Empresa</div>
-    ${fila('Nº trabajadores', datos.num_trabajadores)}
-    ${fila('Nº centros/sedes', datos.num_centros)}
-    ${fila('Tipo de jornada', datos.tipo_jornada)}
-    ${fila('Sistema de turnos', datos.tiene_turnos)}
+    ${seccion('A. Contexto organizacional')}
+    ${fila('Nº trabajadores', d.num_trabajadores)}
+    ${fila('Nº centros/sedes', d.num_centros)}
+    ${fila('Tipos de turno', d.tipos_turno)}
+    ${fila('Modalidad de trabajo', d.modalidad)}
+    ${fila('Rango etario predominante', d.rango_etario)}
+    ${fila('Sectores / áreas principales', d.sectores)}
+    ${fila('Certificación empresa saludable', d.certificacion)}
+    ${fila('Receptividad al autocuidado', d.receptividad)}
 
-    <div style="font-size:13px;font-weight:700;color:var(--verde-oscuro);text-transform:uppercase;letter-spacing:0.5px;margin:20px 0 8px;">1. Estrategia de bienestar</div>
-    ${fila('Estrategia actual', datos.tiene_estrategia)}
-    ${fila('Áreas que aborda', datos.areas_bienestar)}
-    ${fila('Frecuencia de actividades', datos.frecuencia_bienestar)}
-    ${fila('Presupuesto', datos.presupuesto)}
-    ${fila('Liderazgo', datos.lider_bienestar)}
+    ${seccion('B. Estrategia y cultura de bienestar')}
+    ${fila('Programa de bienestar actual', d.tiene_estrategia)}
+    ${fila('Frecuencia de actividades', d.frecuencia_bienestar)}
+    ${fila('Áreas que aborda actualmente', d.areas_bienestar)}
+    ${fila('Liderazgo de bienestar', d.lider_bienestar)}
+    ${fila('Presupuesto disponible', d.presupuesto_existe)}
+    ${fila('Rango presupuestario por actividad', d.presupuesto_rango)}
+    ${fila('Acceso a franquicia SENCE', d.tiene_sence)}
+    ${fila('Inscrita en ChileCompra', d.tiene_chilecompra)}
 
-    <div style="font-size:13px;font-weight:700;color:var(--verde-oscuro);text-transform:uppercase;letter-spacing:0.5px;margin:20px 0 8px;">2. Participación</div>
-    ${fila('Participación previa', datos.participacion_prev)}
-    ${fila('Actividades más populares', datos.actividades_populares)}
-    ${fila('Diferencias por área/cargo', datos.diferencias_participacion)}
-    ${fila('Dificultades para participar', datos.dificultades_participacion)}
+    ${seccion('C. Salud y bienestar del equipo')}
+    ${fila('Problemas de salud observados', d.problemas_salud)}
+    ${fila('Sedentarismo / falta de energía', d.sedentarismo_visible)}
+    ${fila('Ausentismo por salud', d.ausentismo)}
+    ${fila('Problemas de sueño visibles', d.problemas_sueno)}
+    ${fila('Hábitos de alimentación', d.habitos_alimentacion)}
+    ${fila('Tiempos para alimentarse', d.tiempo_alimentacion)}
+    ${fila('Tipo de alimentos predominante', d.tipo_alimentos)}
+    ${fila('Acceso a refrigerador/microondas', d.acceso_refrigerador)}
+    ${fila('Tipo de casino/cafetería', d.tipo_casino)}
+    ${fila('Conformidad con el casino', d.conformidad_casino)}
 
-    <div style="font-size:13px;font-weight:700;color:var(--verde-oscuro);text-transform:uppercase;letter-spacing:0.5px;margin:20px 0 8px;">3. Necesidades percibidas</div>
-    ${fila('Principales necesidades', datos.necesidades_percibidas)}
+    ${seccion('D. Entorno laboral y participación')}
+    ${fila('Pausas activas', d.pausas_activas)}
+    ${fila('Acceso a agua potable', d.acceso_agua)}
+    ${fila('Espacios para actividad física', d.espacios_deporte)}
+    ${fila('Infraestructura disponible', d.infraestructura)}
+    ${fila('Dificultades por turnos', d.dificultades_turnos)}
+    ${fila('Participación en actividades previas', d.participacion_prev)}
+    ${fila('Actividades más populares', d.actividades_populares)}
+    ${fila('Dificultades para participar', d.dificultades_participacion)}
 
-    <div style="font-size:13px;font-weight:700;color:var(--verde-oscuro);text-transform:uppercase;letter-spacing:0.5px;margin:20px 0 8px;">4. Entorno laboral</div>
-    ${fila('Casino/comedor', datos.tiene_casino)}
-    ${fila('Disponibilidad de alimentos saludables', datos.disponibilidad_saludable)}
-    ${fila('Pausas activas', datos.pausas_activas)}
-    ${fila('Acceso a agua', datos.acceso_agua)}
-    ${fila('Espacios para actividad física', datos.espacios_deporte)}
-    ${fila('Dificultades por turnos', datos.dificultades_turnos)}
+    ${seccion('E. Necesidades y medición')}
+    ${fila('Principales necesidades percibidas', d.necesidades_percibidas)}
+    ${fila('Indicadores a mejorar', d.indicadores_mejorar)}
+    ${fila('Mide indicadores de bienestar', d.mide_bienestar)}
+    ${fila('Indicadores que miden actualmente', d.indicadores_actuales)}
+    ${fila('Evaluaciones previas realizadas', d.eval_prev)}
+    ${fila('Datos históricos disponibles', d.tiene_historicos)}
+    ${fila('Definición de éxito del programa', d.exito_bienestar)}
 
-    <div style="font-size:13px;font-weight:700;color:var(--verde-oscuro);text-transform:uppercase;letter-spacing:0.5px;margin:20px 0 8px;">5. Percepción de RRHH</div>
-    ${fila('Indicadores a mejorar', datos.indicadores_mejorar)}
-    ${fila('Ausentismo', datos.ausentismo)}
-    ${fila('Definición de éxito', datos.exito_bienestar)}
-
-    <div style="font-size:13px;font-weight:700;color:var(--verde-oscuro);text-transform:uppercase;letter-spacing:0.5px;margin:20px 0 8px;">6. Medición actual</div>
-    ${fila('Mide indicadores de bienestar', datos.mide_bienestar)}
-    ${fila('Indicadores que miden', datos.indicadores_actuales)}
-    ${fila('Evaluaciones previas', datos.eval_prev)}
-    ${fila('Datos históricos disponibles', datos.tiene_historicos)}
+    ${seccion('F. Temas de interés (escala 1–5)')}
+    ${escala('Alimentación saludable en el trabajo', d.tema_alimentacion)}
+    ${escala('Manejo del estrés y autorregulación', d.tema_estres)}
+    ${escala('Sueño y descanso', d.tema_sueno)}
+    ${escala('Hidratación y bebidas', d.tema_hidratacion)}
+    ${escala('Alimentación, productividad y energía', d.tema_energia)}
+    ${escala('Hábitos para condiciones crónicas', d.tema_cronicas)}
+    ${escala('Bienestar hormonal y ciclo menstrual', d.tema_hormonal)}
+    ${escala('Plantas medicinales y autocuidado natural', d.tema_plantas)}
+    ${escala('Aromaterapia aplicada al trabajo', d.tema_aromaterapia)}
+    ${escala('Colaciones y snacks saludables', d.tema_colaciones)}
+    ${escala('Check-up Nútrete (bioimpedancia)', d.tema_checkup)}
   `;
 }
 
