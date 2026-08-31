@@ -306,114 +306,447 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 function mostrarFormColaborador(token, encuestaId, empresa) {
   document.getElementById('contenido').innerHTML = `
 
-    <div class="card">
-      <div class="seccion-label">Sección 1 — Alimentación en el trabajo</div>
-
-      <div class="pregunta-bloque">
-        <div class="pregunta-texto">¿Con qué frecuencia desayunas antes de llegar al trabajo?</div>
-        <div class="opciones-radio">
-          ${radio('desayuno', ['Todos los días','Casi siempre','A veces','Casi nunca','Nunca'])}
-        </div>
-      </div>
-
-      <div class="pregunta-bloque">
-        <div class="pregunta-texto">¿Dónde almuerzas habitualmente?</div>
-        <div class="opciones-radio">
-          ${radio('almuerzo', ['Casino de la empresa','Traigo comida de casa','Salgo a comer afuera','No almuerzo','Varía'])}
-        </div>
-      </div>
-
-      <div class="pregunta-bloque">
-        <div class="pregunta-texto">¿Cómo evalúas la calidad de tu alimentación en el trabajo?</div>
-        ${escala('calidad', 'Muy mala', 'Excelente')}
+    <div class="card" style="background:#f0f7f3;border-color:#c8ebd5;margin-bottom:20px;">
+      <div style="font-size:14px;color:var(--verde-oscuro);line-height:1.7;">
+        Tus respuestas son <strong>completamente anónimas</strong>. No se recopilan datos que permitan identificarte. La información se usará únicamente para diseñar un programa de bienestar a la medida de tu equipo.<br>
+        <strong>Tiempo estimado:</strong> 8–12 minutos.
       </div>
     </div>
 
+    <!-- S1: INFORMACIÓN GENERAL -->
     <div class="card">
-      <div class="seccion-label">Sección 2 — Hábitos de vida</div>
+      <div class="seccion-label">Sección 1 — Información general</div>
+      <div style="font-size:13px;color:var(--texto-suave);margin-bottom:16px;">Esta información nos permite analizar los resultados por grupos. No permite identificarte individualmente.</div>
 
       <div class="pregunta-bloque">
-        <div class="pregunta-texto">¿Cuántas horas duermes habitualmente?</div>
+        <div class="pregunta-texto">1. Área o departamento <span class="opcional-badge" style="background:#e8f5ee;color:#07542F;">obligatoria</span></div>
         <div class="opciones-radio">
-          ${radio('sueno', ['Menos de 5 horas','5-6 horas','7-8 horas','Más de 8 horas'])}
+          ${radio('area_dept', ['Administración','Operaciones','Producción','Comercial','Recursos Humanos / Personas','Finanzas','Tecnología','Logística','Otra'])}
         </div>
       </div>
 
       <div class="pregunta-bloque">
-        <div class="pregunta-texto">¿Con qué frecuencia realizas actividad física?</div>
+        <div class="pregunta-texto">2. Rango de edad <span class="opcional-badge" style="background:#e8f5ee;color:#07542F;">obligatoria</span></div>
         <div class="opciones-radio">
-          ${radio('actividad', ['Todos los días','3-4 veces por semana','1-2 veces por semana','Casi nunca','Nunca'])}
+          ${radio('rango_edad', ['Menos de 25 años','25–34 años','35–44 años','45–54 años','55–64 años','65 años o más'])}
         </div>
       </div>
 
       <div class="pregunta-bloque">
-        <div class="pregunta-texto">¿Cuántos litros de agua bebes al día aproximadamente?</div>
+        <div class="pregunta-texto">3. Modalidad de trabajo principal</div>
         <div class="opciones-radio">
-          ${radio('agua', ['Menos de 1 litro','1-1.5 litros','1.5-2 litros','Más de 2 litros'])}
+          ${radio('modalidad_trabajo', ['Presencial','Híbrida','Remota','Trabajo en terreno','Otra'])}
+        </div>
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">4. Antigüedad en la organización</div>
+        <div class="opciones-radio">
+          ${radio('antiguedad', ['Menos de 1 año','1–3 años','4–6 años','7–10 años','Más de 10 años'])}
         </div>
       </div>
     </div>
 
+    <!-- S2: BIENESTAR GENERAL -->
     <div class="card">
-      <div class="seccion-label">Sección 3 — Bienestar emocional</div>
+      <div class="seccion-label">Sección 2 — Bienestar general</div>
+      <div style="font-size:13px;color:var(--texto-suave);margin-bottom:16px;font-style:italic;">Responde pensando en cómo te has sentido durante las últimas 4 semanas.</div>
 
       <div class="pregunta-bloque">
-        <div class="pregunta-texto">¿Cómo describirías tu nivel de estrés en el trabajo?</div>
-        ${escala('estres', 'Sin estrés', 'Muy estresado/a')}
+        <div class="pregunta-texto">5. ¿Cómo evaluarías actualmente tu bienestar general?</div>
+        ${escala('bienestar_general', '1 = Muy bajo', '5 = Muy bueno')}
       </div>
 
       <div class="pregunta-bloque">
-        <div class="pregunta-texto">¿Cómo evalúas tu bienestar general en este momento?</div>
-        ${escala('bienestar', 'Muy malo', 'Excelente')}
+        <div class="pregunta-texto">6. ¿Qué tan satisfecho/a estás actualmente con tu calidad de vida?</div>
+        ${escala('satisfaccion_vida', '1 = Nada satisfecho/a', '5 = Muy satisfecho/a')}
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">7. ¿Sientes que tienes las herramientas necesarias para cuidar tu bienestar?</div>
+        ${escala('herramientas_bienestar', '1 = Nada', '5 = Totalmente')}
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">8. ¿Qué tan prioritario es para ti mejorar tu bienestar actualmente?</div>
+        ${escala('prioridad_bienestar', '1 = Nada prioritario', '5 = Muy prioritario')}
       </div>
     </div>
 
+    <!-- S3: ALIMENTACIÓN -->
     <div class="card">
-      <div class="seccion-label">Sección 4 — Intereses</div>
+      <div class="seccion-label">Sección 3 — Alimentación</div>
 
       <div class="pregunta-bloque">
-        <div class="pregunta-texto">¿Qué actividades de bienestar te interesarían? (puedes marcar varias)</div>
+        <div class="pregunta-texto">9. ¿Cómo evaluarías actualmente la calidad de tu alimentación?</div>
+        ${escala('calidad_alimentacion', '1 = Muy poco saludable', '5 = Muy saludable')}
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">10. ¿Con qué frecuencia consumes frutas y verduras durante una semana habitual?</div>
         <div class="opciones-radio">
-          ${checkbox('intereses', [
-            ['aromaterapia','Taller de aromaterapia y plantas medicinales'],
-            ['fitoterapia','Charla de fitoterapia y hierbas medicinales'],
-            ['checkup','Evaluación nutricional con bioimpedancia (Check-up Nútrete)'],
-            ['talleres','Talleres de alimentación saludable'],
+          ${radio('frutas_verduras', ['Todos los días','5–6 días a la semana','3–4 días a la semana','1–2 días a la semana','Casi nunca'])}
+        </div>
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">11. ¿Con qué frecuencia consumes alimentos ultraprocesados durante una semana habitual?</div>
+        <div class="opciones-radio">
+          ${radio('ultraprocesados', ['Todos los días','5–6 días a la semana','3–4 días a la semana','1–2 días a la semana','Casi nunca'])}
+        </div>
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">12. Durante tu jornada laboral, ¿qué tan fácil es acceder a opciones de alimentación saludable?</div>
+        ${escala('acceso_saludable', '1 = Muy difícil', '5 = Muy fácil')}
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">13. ¿Tu jornada o condiciones de trabajo dificultan mantener una alimentación saludable?</div>
+        ${escala('jornada_dificulta_alim', '1 = Nunca', '5 = Mucho')}
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">14. ¿Con qué frecuencia realizas tus comidas principales con tranquilidad y sin apresurarte?</div>
+        <div class="opciones-radio">
+          ${radio('comidas_tranquilas', ['Siempre','Frecuentemente','A veces','Rara vez','Nunca'])}
+        </div>
+      </div>
+    </div>
+
+    <!-- S4: MOVIMIENTO -->
+    <div class="card">
+      <div class="seccion-label">Sección 4 — Movimiento y actividad física</div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">15. Durante una semana habitual, ¿cuántos días realizas actividad física de intensidad moderada o alta?</div>
+        <div class="opciones-radio">
+          ${radio('dias_actividad', ['0 días','1–2 días','3–4 días','5–6 días','7 días'])}
+        </div>
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">16. Durante tu jornada laboral, ¿cuánto tiempo aproximado permaneces sentado/a o con muy poco movimiento?</div>
+        <div class="opciones-radio">
+          ${radio('tiempo_sedentario', ['Menos de 2 horas','2–4 horas','4–6 horas','6–8 horas','Más de 8 horas','No aplica a mi trabajo'])}
+        </div>
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">17. ¿Tu trabajo te permite realizar pausas o momentos de movimiento durante la jornada?</div>
+        ${escala('pausas_movimiento', '1 = Nunca', '5 = Siempre')}
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">18. ¿Sientes que tu trabajo facilita o dificulta mantenerte físicamente activo/a?</div>
+        ${escala('trabajo_facilita_actividad', '1 = Lo dificulta mucho', '5 = Lo facilita mucho')}
+      </div>
+    </div>
+
+    <!-- S5: SUEÑO -->
+    <div class="card">
+      <div class="seccion-label">Sección 5 — Sueño y recuperación</div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">19. En promedio, ¿cuántas horas duermes por noche?</div>
+        <div class="opciones-radio">
+          ${radio('horas_sueno', ['Menos de 5 horas','5–6 horas','6–7 horas','7–8 horas','Más de 8 horas'])}
+        </div>
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">20. ¿Cómo evaluarías la calidad de tu sueño?</div>
+        ${escala('calidad_sueno', '1 = Muy mala', '5 = Muy buena')}
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">21. ¿Con qué frecuencia despiertas sintiéndote descansado/a?</div>
+        ${escala('descansado_amanecer', '1 = Nunca', '5 = Siempre')}
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">22. ¿Con qué frecuencia el trabajo o sus horarios afectan tu descanso?</div>
+        ${escala('trabajo_afecta_sueno', '1 = Nunca', '5 = Muy frecuentemente')}
+      </div>
+    </div>
+
+    <!-- S6: ENERGÍA -->
+    <div class="card">
+      <div class="seccion-label">Sección 6 — Energía y vitalidad</div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">23. ¿Cómo describirías tu nivel de energía durante una jornada laboral habitual?</div>
+        ${escala('nivel_energia', '1 = Muy bajo', '5 = Muy alto')}
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">24. ¿Con qué frecuencia sientes cansancio durante tu jornada laboral?</div>
+        ${escala('cansancio_jornada', '1 = Nunca', '5 = Siempre')}
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">25. ¿En qué momento del día suele disminuir más tu energía?</div>
+        <div class="opciones-radio">
+          ${radio('momento_baja_energia', ['Al comenzar la jornada','Durante la mañana','Después del almuerzo','Durante la tarde','Al finalizar la jornada','No noto una disminución importante'])}
+        </div>
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">26. ¿Sientes que tus hábitos actuales te permiten mantener un buen nivel de energía durante el día?</div>
+        ${escala('habitos_energia', '1 = Nada', '5 = Totalmente')}
+      </div>
+    </div>
+
+    <!-- S7: ESTRÉS -->
+    <div class="card">
+      <div class="seccion-label">Sección 7 — Estrés y recursos personales</div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">27. ¿Con qué frecuencia sientes que tu carga laboral es difícil de manejar?</div>
+        ${escala('carga_laboral', '1 = Nunca', '5 = Siempre')}
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">28. ¿Con qué frecuencia te resulta difícil desconectarte del trabajo fuera de tu jornada?</div>
+        ${escala('desconexion_trabajo', '1 = Nunca', '5 = Siempre')}
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">29. ¿Sientes que tienes herramientas para manejar adecuadamente el estrés cotidiano?</div>
+        ${escala('herramientas_estres', '1 = Nada', '5 = Totalmente')}
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">30. ¿Sientes que cuentas con apoyo cuando enfrentas situaciones laborales difíciles?</div>
+        ${escala('apoyo_laboral', '1 = Nada', '5 = Totalmente')}
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">31. ¿Qué estrategias utilizas actualmente para manejar el estrés? (puedes marcar varias)</div>
+        <div class="opciones-radio">
+          ${checkbox('estrategias_estres', [
+            ['actividad_fis','Actividad física'],
+            ['dormir','Dormir o descansar'],
+            ['alimentacion_est','Alimentación'],
+            ['respiracion','Respiración / meditación'],
+            ['familia_amigos','Pasar tiempo con familia o amigos'],
+            ['naturaleza','Naturaleza / actividades al aire libre'],
+            ['plantas','Plantas medicinales o infusiones'],
+            ['aromaterapia_est','Aromaterapia'],
+            ['psicoterapia','Psicoterapia u otro apoyo profesional'],
+            ['hobbies','Hobbies / actividades recreativas'],
+            ['ninguna_est','No utilizo estrategias actualmente'],
+            ['otra_est','Otra'],
           ])}
         </div>
       </div>
     </div>
 
+    <!-- S8: ENTORNO LABORAL -->
     <div class="card">
-      <div class="seccion-label">Sección 5 — Tu salud <span class="opcional-badge">opcional</span></div>
+      <div class="seccion-label">Sección 8 — Entorno laboral</div>
 
       <div class="pregunta-bloque">
-        <div class="pregunta-texto">¿Cómo describes tu estado de salud general?</div>
+        <div class="pregunta-texto">32. ¿Cómo evaluarías el ambiente laboral de tu equipo?</div>
+        ${escala('ambiente_laboral', '1 = Muy negativo', '5 = Muy positivo')}
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">33. ¿Sientes que tus opiniones y necesidades son escuchadas?</div>
+        ${escala('opiniones_escuchadas', '1 = Nunca', '5 = Siempre')}
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">34. ¿Sientes que existe respeto entre las personas de tu lugar de trabajo?</div>
+        ${escala('respeto_laboral', '1 = Nada', '5 = Totalmente')}
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">35. ¿Consideras adecuada tu carga de trabajo habitual?</div>
+        ${escala('carga_adecuada', '1 = Nada adecuada', '5 = Muy adecuada')}
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">36. ¿Sientes que tienes suficiente autonomía para organizar tu trabajo?</div>
+        ${escala('autonomia_trabajo', '1 = Nada', '5 = Mucha')}
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">37. ¿Tu lugar de trabajo facilita mantener hábitos saludables?</div>
+        ${escala('trabajo_facilita_habitos', '1 = Nada', '5 = Mucho')}
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">38. ¿Sientes que existe una cultura que promueve el bienestar de las personas?</div>
+        ${escala('cultura_bienestar', '1 = Nada', '5 = Mucho')}
+      </div>
+    </div>
+
+    <!-- S9: AUTOCUIDADO -->
+    <div class="card">
+      <div class="seccion-label">Sección 9 — Autocuidado y salud</div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">39. ¿Qué tan fácil te resulta incorporar prácticas de autocuidado en tu vida cotidiana?</div>
+        ${escala('facilidad_autocuidado', '1 = Muy difícil', '5 = Muy fácil')}
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">40. ¿Qué áreas de tu bienestar personal te gustaría fortalecer? <span class="opcional-badge">máximo 4</span></div>
         <div class="opciones-radio">
-          ${radio('salud', ['Muy bueno','Bueno','Regular','Malo'])}
+          ${checkbox('areas_fortalecer', [
+            ['alim_fort','Alimentación'],
+            ['sueno_fort','Sueño'],
+            ['energia_fort','Energía'],
+            ['actividad_fort','Actividad física'],
+            ['digestiva','Salud digestiva'],
+            ['estres_fort','Manejo del estrés'],
+            ['cardiovascular_fort','Salud cardiovascular'],
+            ['piel','Salud de la piel'],
+            ['metabolica','Salud metabólica'],
+            ['hormonal','Salud hormonal'],
+            ['autocuidado_fort','Autocuidado'],
+            ['otro_fort','Otro'],
+          ])}
+        </div>
+      </div>
+    </div>
+
+    <!-- S10: FITOTERAPIA -->
+    <div class="card">
+      <div class="seccion-label">Sección 10 — Fitoterapia y bienestar natural</div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">41. ¿Utilizas actualmente plantas medicinales, infusiones o preparados naturales como parte de tus hábitos?</div>
+        <div class="opciones-radio">
+          ${radio('uso_plantas', ['Sí, frecuentemente','Sí, ocasionalmente','Lo he utilizado alguna vez','No','No sé suficiente sobre el tema'])}
         </div>
       </div>
 
       <div class="pregunta-bloque">
-        <div class="pregunta-texto">¿Tienes alguna condición de salud diagnosticada? (puedes marcar varias)</div>
+        <div class="pregunta-texto">42. ¿Sobre qué temas te interesaría aprender sobre plantas medicinales? (puedes marcar varias)</div>
         <div class="opciones-radio">
-          ${checkbox('condiciones', [
-            ['Hipertensión','Hipertensión'],
-            ['Diabetes o prediabetes','Diabetes o prediabetes'],
-            ['Sobrepeso u obesidad','Sobrepeso u obesidad'],
-            ['Colesterol elevado','Colesterol elevado'],
-            ['Ninguna','Ninguna'],
-            ['Prefiero no indicar','Prefiero no indicar'],
+          ${checkbox('interes_plantas', [
+            ['digestion_pl','Digestión'],
+            ['sueno_pl','Sueño'],
+            ['relajacion','Relajación'],
+            ['estres_pl','Estrés cotidiano'],
+            ['energia_pl','Energía'],
+            ['bienestar_pl','Bienestar general'],
+            ['piel_pl','Cuidado de la piel'],
+            ['preparacion','Preparación y consumo seguro'],
+            ['interacciones','Interacciones y precauciones'],
+            ['no_interes_pl','No me interesa'],
+            ['otro_pl','Otro'],
           ])}
         </div>
       </div>
 
       <div class="pregunta-bloque">
-        <div class="pregunta-texto">¿Te interesaría participar en el Check-up Nútrete (evaluación nutricional con bioimpedancia)?</div>
+        <div class="pregunta-texto">43. ¿Qué tan interesado/a estarías en participar en una actividad educativa sobre plantas medicinales y autocuidado?</div>
+        ${escala('interes_taller_plantas', '1 = Nada interesado/a', '5 = Muy interesado/a')}
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">44. ¿Qué tan interesado/a estarías en participar en una experiencia de aromaterapia orientada al bienestar?</div>
+        ${escala('interes_aromaterapia', '1 = Nada interesado/a', '5 = Muy interesado/a')}
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">45. ¿Qué otras actividades de bienestar te interesarían? (puedes marcar varias)</div>
         <div class="opciones-radio">
-          ${radio('checkup_interes', ['Sí, me interesa','Tal vez','No por ahora'])}
+          ${checkbox('otras_actividades', [
+            ['masajes','Masajes o técnicas de relajación corporal'],
+            ['pausas_activas','Pausas activas guiadas'],
+            ['meditacion','Meditación o mindfulness'],
+            ['yoga','Yoga o movimiento consciente'],
+            ['talleres_cocina','Talleres de cocina saludable'],
+            ['caminatas','Caminatas o actividad al aire libre'],
+            ['manualidades','Manualidades o actividades creativas'],
+            ['musica','Musicoterapia o sonidos relajantes'],
+            ['otro_act','Otra'],
+          ])}
         </div>
       </div>
+    </div>
+
+    <!-- S11: PRIORIDADES -->
+    <div class="card">
+      <div class="seccion-label">Sección 11 — Prioridades</div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">46. Si tu empresa implementara un programa de bienestar, ¿en qué temas te gustaría recibir apoyo? <span class="opcional-badge">máximo 3</span></div>
+        <div class="opciones-radio">
+          ${checkbox('temas_apoyo', [
+            ['alimentacion_pr','🥗 Alimentación saludable'],
+            ['energia_pr','⚡ Energía y fatiga'],
+            ['sueno_pr','😴 Sueño y descanso'],
+            ['estres_pr','🧘 Manejo del estrés'],
+            ['actividad_pr','🚶 Actividad física y movimiento'],
+            ['plantas_pr','🌿 Plantas medicinales'],
+            ['aromaterapia_pr','🌸 Aromaterapia y autocuidado'],
+            ['salud_mental_pr','🧠 Salud mental'],
+            ['cardiovascular_pr','🫀 Prevención cardiovascular'],
+            ['cronicas_pr','🩺 Prevención de enfermedades crónicas'],
+            ['piel_pr','🧴 Cuidado de la piel'],
+            ['equilibrio_pr','⚖️ Equilibrio vida-trabajo'],
+            ['hidratacion_pr','💧 Hidratación'],
+            ['digestiva_pr','🥦 Salud digestiva'],
+            ['otro_pr','Otro'],
+          ])}
+        </div>
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">47. ¿Qué formato te resultaría más atractivo para participar? <span class="opcional-badge">máximo 3</span></div>
+        <div class="opciones-radio">
+          ${checkbox('formato_preferido', [
+            ['charlas','Charlas breves'],
+            ['talleres_prac','Talleres prácticos'],
+            ['webinars','Webinars'],
+            ['presencial','Actividades presenciales'],
+            ['desafios','Desafíos de bienestar'],
+            ['material','Material educativo'],
+            ['recetarios','Recetarios'],
+            ['guias','Guías descargables'],
+            ['autocuidado_fmt','Actividades de autocuidado'],
+            ['evaluaciones_fmt','Evaluaciones individuales'],
+            ['programa_continuo','Programas de varias semanas'],
+            ['otro_fmt','Otro'],
+          ])}
+        </div>
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">48. ¿Con qué frecuencia te gustaría participar en actividades de bienestar?</div>
+        <div class="opciones-radio">
+          ${radio('frecuencia_participacion', ['Una actividad puntual','1 vez al mes','2 veces al mes','1 vez por semana','Me gustaría participar en un programa continuo','No me interesa participar actualmente'])}
+        </div>
+      </div>
+    </div>
+
+    <!-- S12: PREGUNTAS ABIERTAS -->
+    <div class="card">
+      <div class="seccion-label">Sección 12 — Preguntas abiertas <span class="opcional-badge">opcional</span></div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">49. ¿Qué es lo que actualmente más afecta tu bienestar durante la jornada laboral?</div>
+        <textarea id="abierta_1" style="width:100%;padding:10px 12px;border:1.5px solid var(--gris-borde);border-radius:8px;font-size:14px;font-family:inherit;resize:vertical;min-height:80px;margin-top:8px;" placeholder="Escribe tu respuesta..."></textarea>
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">50. Si pudieras cambiar una cosa de tu entorno laboral para mejorar tu bienestar, ¿qué cambiarías?</div>
+        <textarea id="abierta_2" style="width:100%;padding:10px 12px;border:1.5px solid var(--gris-borde);border-radius:8px;font-size:14px;font-family:inherit;resize:vertical;min-height:80px;margin-top:8px;" placeholder="Escribe tu respuesta..."></textarea>
+      </div>
+
+      <div class="pregunta-bloque" style="border-bottom:none;">
+        <div class="pregunta-texto">51. ¿Hay algún tema de bienestar que te gustaría que la empresa abordara y que no haya sido mencionado?</div>
+        <textarea id="abierta_3" style="width:100%;padding:10px 12px;border:1.5px solid var(--gris-borde);border-radius:8px;font-size:14px;font-family:inherit;resize:vertical;min-height:80px;margin-top:8px;" placeholder="Escribe tu respuesta..."></textarea>
+      </div>
+    </div>
+
+    <div style="background:#f0f7f3;border:1px solid #c8ebd5;border-radius:10px;padding:14px 18px;margin-bottom:20px;font-size:13px;color:var(--verde-oscuro);">
+      Tus respuestas son anónimas y confidenciales. Al enviar, aceptas que sean utilizadas para diseñar el programa de bienestar de tu organización.
     </div>
 
     <button class="btn-enviar" id="btn-enviar" onclick="enviarColaborador('${encuestaId}')">
@@ -421,6 +754,7 @@ function mostrarFormColaborador(token, encuestaId, empresa) {
     </button>
   `;
 }
+
 
 // ══════════════════════════════════════════════
 // FORMULARIO GERENCIA
@@ -778,6 +1112,117 @@ function mostrarFormGerencia(token, encuestaId, empresa) {
 function toggleSeccion(id) {
   const el = document.getElementById(id);
   if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+// ══════════════════════════════════════════════
+// ENVIAR COLABORADOR
+// ══════════════════════════════════════════════
+async function enviarColaborador(encuestaId) {
+  const btn = document.getElementById('btn-enviar');
+  btn.disabled = true;
+  btn.textContent = 'Enviando...';
+
+  const getRadio = (name) => document.querySelector(`input[name="${name}"]:checked`)?.value || null;
+  const getCheck = (name) => [...document.querySelectorAll(`input[name="${name}"]:checked`)].map(i => i.value);
+  const getEscalaVal = (grupo) => {
+    const b = document.querySelector(`[data-grupo="${grupo}"].seleccionado`);
+    return b ? parseInt(b.dataset.val) : null;
+  };
+  const getText = (id) => document.getElementById(id)?.value?.trim() || null;
+
+  const datos = {
+    // S1 — Información general
+    area_dept: getRadio('area_dept'),
+    rango_edad: getRadio('rango_edad'),
+    modalidad_trabajo: getRadio('modalidad_trabajo'),
+    antiguedad: getRadio('antiguedad'),
+    // S2 — Bienestar general
+    bienestar_general: getEscalaVal('bienestar_general'),
+    satisfaccion_vida: getEscalaVal('satisfaccion_vida'),
+    herramientas_bienestar: getEscalaVal('herramientas_bienestar'),
+    prioridad_bienestar: getEscalaVal('prioridad_bienestar'),
+    // S3 — Alimentación
+    calidad_alimentacion: getEscalaVal('calidad_alimentacion'),
+    frutas_verduras: getRadio('frutas_verduras'),
+    ultraprocesados: getRadio('ultraprocesados'),
+    acceso_saludable: getEscalaVal('acceso_saludable'),
+    jornada_dificulta_alim: getEscalaVal('jornada_dificulta_alim'),
+    comidas_tranquilas: getRadio('comidas_tranquilas'),
+    // S4 — Movimiento
+    dias_actividad: getRadio('dias_actividad'),
+    tiempo_sedentario: getRadio('tiempo_sedentario'),
+    pausas_movimiento: getEscalaVal('pausas_movimiento'),
+    trabajo_facilita_actividad: getEscalaVal('trabajo_facilita_actividad'),
+    // S5 — Sueño
+    horas_sueno: getRadio('horas_sueno'),
+    calidad_sueno: getEscalaVal('calidad_sueno'),
+    descansado_amanecer: getEscalaVal('descansado_amanecer'),
+    trabajo_afecta_sueno: getEscalaVal('trabajo_afecta_sueno'),
+    // S6 — Energía
+    nivel_energia: getEscalaVal('nivel_energia'),
+    cansancio_jornada: getEscalaVal('cansancio_jornada'),
+    momento_baja_energia: getRadio('momento_baja_energia'),
+    habitos_energia: getEscalaVal('habitos_energia'),
+    // S7 — Estrés
+    carga_laboral: getEscalaVal('carga_laboral'),
+    desconexion_trabajo: getEscalaVal('desconexion_trabajo'),
+    herramientas_estres: getEscalaVal('herramientas_estres'),
+    apoyo_laboral: getEscalaVal('apoyo_laboral'),
+    estrategias_estres: getCheck('estrategias_estres'),
+    // S8 — Entorno laboral
+    ambiente_laboral: getEscalaVal('ambiente_laboral'),
+    opiniones_escuchadas: getEscalaVal('opiniones_escuchadas'),
+    respeto_laboral: getEscalaVal('respeto_laboral'),
+    carga_adecuada: getEscalaVal('carga_adecuada'),
+    autonomia_trabajo: getEscalaVal('autonomia_trabajo'),
+    trabajo_facilita_habitos: getEscalaVal('trabajo_facilita_habitos'),
+    cultura_bienestar: getEscalaVal('cultura_bienestar'),
+    // S9 — Autocuidado
+    facilidad_autocuidado: getEscalaVal('facilidad_autocuidado'),
+    areas_fortalecer: getCheck('areas_fortalecer'),
+    // S10 — Fitoterapia
+    uso_plantas: getRadio('uso_plantas'),
+    interes_plantas: getCheck('interes_plantas'),
+    interes_taller_plantas: getEscalaVal('interes_taller_plantas'),
+    interes_aromaterapia: getEscalaVal('interes_aromaterapia'),
+    otras_actividades: getCheck('otras_actividades'),
+    // S11 — Prioridades
+    temas_apoyo: getCheck('temas_apoyo'),
+    formato_preferido: getCheck('formato_preferido'),
+    frecuencia_participacion: getRadio('frecuencia_participacion'),
+    // S12 — Abiertas
+    abierta_bienestar_jornada: getText('abierta_1'),
+    abierta_cambio_entorno: getText('abierta_2'),
+    abierta_temas_adicionales: getText('abierta_3'),
+  };
+
+  const { error } = await sb.from('respuestas_encuesta').insert({
+    encuesta_id: encuestaId,
+    // Campos compatibles con tabla existente
+    nivel_estres: datos.carga_laboral,
+    bienestar_general: datos.bienestar_general,
+    calidad_alimentacion_percibida: datos.calidad_alimentacion,
+    horas_sueno: datos.horas_sueno === 'Menos de 5 horas' ? 4.5 :
+                 datos.horas_sueno === '5–6 horas' ? 5.5 :
+                 datos.horas_sueno === '6–7 horas' ? 6.5 :
+                 datos.horas_sueno === '7–8 horas' ? 7.5 : 8.5,
+    actividad_fisica_frecuencia: datos.dias_actividad,
+    interes_aromaterapia: (datos.interes_aromaterapia || 0) >= 4,
+    interes_fitoterapia: (datos.interes_taller_plantas || 0) >= 4,
+    interes_checkup: (datos.temas_apoyo || []).includes('cronicas_pr'),
+    interes_talleres: (datos.formato_preferido || []).includes('talleres_prac'),
+    // Resto completo en JSON
+    autopercepcion_salud: JSON.stringify(datos),
+  });
+
+  if (error) {
+    btn.disabled = false;
+    btn.textContent = 'Enviar respuestas';
+    alert('Hubo un error al enviar. Intenta de nuevo.');
+    return;
+  }
+
+  mostrarGracias();
 }
 
 // Inicializar fecha de hoy en formulario de gerencia
