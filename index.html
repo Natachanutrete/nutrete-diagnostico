@@ -1,0 +1,2524 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nútrete Diagnóstico</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --verde: #009444;
+    --verde-oscuro: #07542F;
+    --cafe: #6A3F15;
+    --blanco: #ffffff;
+    --gris-claro: #f4f6f4;
+    --gris-borde: #e0e8e3;
+    --texto: #1a2e1f;
+    --texto-suave: #5a7060;
+    --rojo: #c0392b;
+    --amarillo: #e67e22;
+    --radio: 10px;
+    --sombra: 0 2px 12px rgba(7,84,47,0.08);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--gris-claro);
+    color: var(--texto);
+    min-height: 100vh;
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  /* ── LOGIN ── */
+  #pantalla-login {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(145deg, var(--verde-oscuro) 0%, #0a7040 100%);
+  }
+
+  .login-card {
+    background: white;
+    border-radius: 16px;
+    padding: 48px 40px;
+    width: 100%;
+    max-width: 400px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+  }
+
+  .login-logo {
+    text-align: center;
+    margin-bottom: 32px;
+  }
+
+  .login-logo .marca {
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--verde-oscuro);
+    letter-spacing: -0.5px;
+  }
+
+  .login-logo .submarca {
+    font-size: 13px;
+    color: var(--texto-suave);
+    margin-top: 4px;
+  }
+
+  .login-logo .punto-verde {
+    display: inline-block;
+    width: 8px; height: 8px;
+    background: var(--verde);
+    border-radius: 50%;
+    margin-left: 3px;
+    vertical-align: middle;
+  }
+
+  .campo-grupo {
+    margin-bottom: 18px;
+  }
+
+  .campo-grupo label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--verde-oscuro);
+    margin-bottom: 6px;
+  }
+
+  .campo-grupo input {
+    width: 100%;
+    padding: 11px 14px;
+    border: 1.5px solid var(--gris-borde);
+    border-radius: var(--radio);
+    font-size: 15px;
+    color: var(--texto);
+    transition: border-color 0.2s;
+    outline: none;
+  }
+
+  .campo-grupo input:focus {
+    border-color: var(--verde);
+  }
+
+  .btn-primario {
+    width: 100%;
+    padding: 13px;
+    background: var(--verde);
+    color: white;
+    border: none;
+    border-radius: var(--radio);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+    margin-top: 8px;
+  }
+
+  .btn-primario:hover { background: var(--verde-oscuro); }
+  .btn-primario:disabled { background: #aaa; cursor: not-allowed; }
+
+  .mensaje-error {
+    background: #fdf0ee;
+    color: var(--rojo);
+    border: 1px solid #f5c6c0;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 13px;
+    margin-top: 14px;
+    display: none;
+  }
+
+  /* ── APP ── */
+  #pantalla-app { display: none; }
+
+  .topbar {
+    background: var(--verde-oscuro);
+    color: white;
+    padding: 0 28px;
+    height: 58px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  }
+
+  .topbar-marca {
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+  }
+
+  .topbar-marca span { color: #7fc89a; }
+
+  .topbar-usuario {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-size: 13px;
+    color: #a8d5b8;
+  }
+
+  .topbar-usuario strong { color: white; }
+
+  .btn-salir {
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: white;
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .btn-salir:hover { background: rgba(255,255,255,0.2); }
+
+  .contenido {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 32px 24px;
+  }
+
+  /* ── TABS ── */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    background: white;
+    border-radius: var(--radio);
+    padding: 5px;
+    margin-bottom: 28px;
+    box-shadow: var(--sombra);
+    border: 1px solid var(--gris-borde);
+  }
+
+  .tab {
+    flex: 1;
+    padding: 10px 8px;
+    border: none;
+    border-radius: 7px;
+    background: transparent;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--texto-suave);
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+  }
+
+  .tab.activo {
+    background: var(--verde-oscuro);
+    color: white;
+    font-weight: 600;
+  }
+
+  .tab:hover:not(.activo) { background: var(--gris-claro); }
+
+  /* ── SECCIONES ── */
+  .seccion { display: none; }
+  .seccion.activa { display: block; }
+
+  .seccion-titulo {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--verde-oscuro);
+    margin-bottom: 6px;
+  }
+
+  .seccion-subtitulo {
+    font-size: 14px;
+    color: var(--texto-suave);
+    margin-bottom: 24px;
+  }
+
+  /* ── CARDS ── */
+  .card {
+    background: white;
+    border-radius: var(--radio);
+    padding: 24px;
+    box-shadow: var(--sombra);
+    border: 1px solid var(--gris-borde);
+    margin-bottom: 20px;
+  }
+
+  .card-titulo {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--verde-oscuro);
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--gris-borde);
+  }
+
+  /* ── FORMULARIOS ── */
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .form-grid.tres { grid-template-columns: 1fr 1fr 1fr; }
+  .form-grid.uno { grid-template-columns: 1fr; }
+
+  @media (max-width: 640px) {
+    .form-grid, .form-grid.tres { grid-template-columns: 1fr; }
+  }
+
+  .campo {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .campo label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--texto-suave);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .campo input, .campo select, .campo textarea {
+    padding: 10px 12px;
+    border: 1.5px solid var(--gris-borde);
+    border-radius: 8px;
+    font-size: 14px;
+    color: var(--texto);
+    outline: none;
+    transition: border-color 0.2s;
+    background: white;
+  }
+
+  .campo input:focus, .campo select:focus, .campo textarea:focus {
+    border-color: var(--verde);
+  }
+
+  .campo textarea { resize: vertical; min-height: 80px; }
+
+  .campo-completo { grid-column: 1 / -1; }
+
+  /* ── SEMÁFORO ── */
+  .semaforo {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 20px;
+  }
+
+  .semaforo.verde { background: #e8f5ee; color: #07542F; }
+  .semaforo.amarillo { background: #fef3e8; color: #a05a00; }
+  .semaforo.rojo { background: #fdf0ee; color: var(--rojo); }
+
+  .semaforo::before {
+    content: '';
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+
+  .semaforo.verde::before { background: var(--verde); }
+  .semaforo.amarillo::before { background: var(--amarillo); }
+  .semaforo.rojo::before { background: var(--rojo); }
+
+  /* ── TABLA ── */
+  .tabla-container { overflow-x: auto; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+
+  th {
+    text-align: left;
+    padding: 10px 14px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--texto-suave);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 2px solid var(--gris-borde);
+    background: var(--gris-claro);
+  }
+
+  td {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--gris-borde);
+    color: var(--texto);
+  }
+
+  tr:hover td { background: #f8fcf9; }
+
+  tr:last-child td { border-bottom: none; }
+
+  /* ── BOTONES ── */
+  .btn {
+    padding: 9px 18px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+  }
+
+  .btn-verde { background: var(--verde); color: white; }
+  .btn-verde:hover { background: var(--verde-oscuro); }
+
+  .btn-outline {
+    background: transparent;
+    color: var(--verde-oscuro);
+    border: 1.5px solid var(--verde-oscuro);
+  }
+
+  .btn-outline:hover { background: var(--gris-claro); }
+
+  .btn-rojo { background: var(--rojo); color: white; }
+  .btn-pequeño { padding: 5px 12px; font-size: 12px; }
+
+  .acciones { display: flex; gap: 8px; align-items: center; }
+
+  /* ── STATS ── */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .stat-card {
+    background: white;
+    border-radius: var(--radio);
+    padding: 20px;
+    border: 1px solid var(--gris-borde);
+    box-shadow: var(--sombra);
+  }
+
+  .stat-numero {
+    font-size: 32px;
+    font-weight: 800;
+    color: var(--verde);
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .stat-label {
+    font-size: 12px;
+    color: var(--texto-suave);
+    font-weight: 500;
+  }
+
+  /* ── BADGE ── */
+  .badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .badge-verde { background: #e8f5ee; color: var(--verde-oscuro); }
+  .badge-cafe { background: #f5ede5; color: var(--cafe); }
+  .badge-gris { background: #eee; color: #666; }
+
+  /* ── LOADING ── */
+  .loading {
+    text-align: center;
+    padding: 40px;
+    color: var(--texto-suave);
+    font-size: 14px;
+  }
+
+  .spinner {
+    width: 32px; height: 32px;
+    border: 3px solid var(--gris-borde);
+    border-top-color: var(--verde);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 12px;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── EMPTY STATE ── */
+  .empty-state {
+    text-align: center;
+    padding: 48px 24px;
+    color: var(--texto-suave);
+  }
+
+  .empty-state .icono { font-size: 40px; margin-bottom: 12px; }
+  .empty-state p { font-size: 14px; margin-bottom: 16px; }
+
+  /* ── MODAL ── */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 200;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  .modal-overlay.abierto { display: flex; }
+
+  .modal {
+    background: white;
+    border-radius: 14px;
+    padding: 32px;
+    width: 100%;
+    max-width: 600px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+  }
+
+  .modal-titulo {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--verde-oscuro);
+    margin-bottom: 20px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--gris-borde);
+  }
+
+  .modal-acciones {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid var(--gris-borde);
+  }
+
+  /* ── CHECKUP FORM ── */
+  .variable-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr 120px;
+    gap: 12px;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--gris-borde);
+  }
+
+  .variable-row:last-child { border-bottom: none; }
+
+  .variable-nombre {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--texto);
+  }
+
+  .variable-referencia {
+    font-size: 11px;
+    color: var(--texto-suave);
+    margin-top: 2px;
+  }
+
+  /* ── ENCUESTA ── */
+  .pregunta-bloque {
+    padding: 16px 0;
+    border-bottom: 1px solid var(--gris-borde);
+  }
+
+  .pregunta-bloque:last-child { border-bottom: none; }
+
+  .pregunta-texto {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--texto);
+    margin-bottom: 10px;
+  }
+
+  .opciones-radio { display: flex; flex-direction: column; gap: 8px; }
+
+  .opcion-radio {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  .escala-likert {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .escala-btn {
+    width: 44px; height: 44px;
+    border-radius: 8px;
+    border: 1.5px solid var(--gris-borde);
+    background: white;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    color: var(--texto);
+  }
+
+  .escala-btn:hover { border-color: var(--verde); color: var(--verde); }
+  .escala-btn.seleccionado { background: var(--verde); color: white; border-color: var(--verde); }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--verde-oscuro);
+    color: white;
+    padding: 12px 20px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 500;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    z-index: 999;
+    transform: translateY(80px);
+    opacity: 0;
+    transition: all 0.3s;
+  }
+
+  .toast.visible { transform: translateY(0); opacity: 1; }
+  .toast.error { background: var(--rojo); }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════ LOGIN ═══════════════════════════════ -->
+<div id="pantalla-login">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="marca">Nútrete<span class="punto-verde"></span></div>
+      <div class="submarca">Plataforma de Diagnóstico Corporativo</div>
+    </div>
+    <div class="campo-grupo">
+      <label>Correo electrónico</label>
+      <input type="email" id="login-email" placeholder="tu@correo.com" />
+    </div>
+    <div class="campo-grupo">
+      <label>Contraseña</label>
+      <input type="password" id="login-password" placeholder="••••••••" />
+    </div>
+    <button class="btn-primario" onclick="iniciarSesion()">Ingresar</button>
+    <div class="mensaje-error" id="login-error"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ APP ═══════════════════════════════ -->
+<div id="pantalla-app">
+  <div class="topbar">
+    <div class="topbar-marca">Nútrete <span>Diagnóstico</span></div>
+    <div class="topbar-usuario">
+      <span>Bienvenida, <strong id="nombre-usuario">—</strong></span>
+      <span class="badge badge-verde" id="rol-badge">—</span>
+      <button class="btn-salir" onclick="cerrarSesion()">Salir</button>
+    </div>
+  </div>
+
+  <div class="contenido">
+
+    <!-- TABS (se muestran según rol) -->
+    <div class="tabs" id="tabs-nav"></div>
+
+    <!-- ══ SECCIÓN: RESUMEN ══ -->
+    <div class="seccion activa" id="sec-resumen">
+      <div class="seccion-titulo">Resumen</div>
+      <div class="seccion-subtitulo">Estado actual por empresa</div>
+
+      <!-- KPIs globales -->
+      <div class="stats-grid" id="stats-container">
+        <div class="loading"><div class="spinner"></div>Cargando...</div>
+      </div>
+
+      <!-- Tabla por empresa -->
+      <div class="card">
+        <div class="card-titulo">Estado por empresa</div>
+        <div class="tabla-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Empresa</th>
+                <th>Evaluación activa</th>
+                <th>Colaboradores evaluados</th>
+                <th>Encuesta trabajadores</th>
+                <th>Encuesta gerencia</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody id="resumen-por-empresa">
+              <tr><td colspan="6"><div class="loading"><div class="spinner"></div></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SECCIÓN: EMPRESAS ══ -->
+    <div class="seccion" id="sec-empresas">
+      <div class="seccion-titulo">Empresas</div>
+      <div class="seccion-subtitulo">Gestión de empresas clientes y aliadas</div>
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+          <div class="card-titulo" style="margin:0; border:none; padding:0;">Lista de empresas</div>
+          <button class="btn btn-verde" onclick="abrirModalEmpresa()">+ Nueva empresa</button>
+        </div>
+        <div class="tabla-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Empresa</th>
+                <th>RUT</th>
+                <th>Tipo</th>
+                <th>Aliada</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tabla-empresas">
+              <tr><td colspan="6" class="loading">Cargando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SECCIÓN: EVALUACIONES ══ -->
+    <div class="seccion" id="sec-evaluaciones">
+      <div class="seccion-titulo">Evaluaciones</div>
+      <div class="seccion-subtitulo">Sesiones de Check-up Nútrete por empresa</div>
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+          <div class="card-titulo" style="margin:0; border:none; padding:0;">Todas las evaluaciones</div>
+          <button class="btn btn-verde" onclick="abrirModalEvaluacion()">+ Nueva evaluación</button>
+        </div>
+        <div class="tabla-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Empresa</th>
+                <th>Sesión</th>
+                <th>Fecha</th>
+                <th>Participantes</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tabla-evaluaciones">
+              <tr><td colspan="6" class="loading">Cargando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SECCIÓN: CHECK-UP ══ -->
+    <div class="seccion" id="sec-checkup">
+      <div class="seccion-titulo">Ingresar Check-up</div>
+      <div class="seccion-subtitulo">Registra los datos de bioimpedancia de cada colaborador</div>
+      <div class="card">
+        <div class="card-titulo">Seleccionar evaluación</div>
+        <div class="form-grid">
+          <div class="campo">
+            <label>Evaluación</label>
+            <select id="checkup-evaluacion" onchange="cargarColaboradores()">
+              <option value="">Selecciona una evaluación...</option>
+            </select>
+          </div>
+          <div class="campo" style="align-self:end;">
+            <button class="btn btn-verde" onclick="nuevoCheckup()">+ Nuevo colaborador</button>
+          </div>
+        </div>
+      </div>
+      <div class="card" id="card-colaboradores" style="display:none;">
+        <div class="card-titulo">Colaboradores evaluados</div>
+        <div class="tabla-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Código</th>
+                <th>Sexo</th>
+                <th>Edad</th>
+                <th>IMC</th>
+                <th>Grasa %</th>
+                <th>Presión</th>
+                <th>Glicemia</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tabla-colaboradores"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SECCIÓN: ENCUESTAS ══ -->
+    <div class="seccion" id="sec-encuestas">
+      <div class="seccion-titulo">Encuestas</div>
+      <div class="seccion-subtitulo">Gestiona y envía encuestas a colaboradores</div>
+      <div class="card">
+        <div class="card-titulo">Crear encuesta</div>
+        <div class="form-grid">
+          <div class="campo">
+            <label>Evaluación asociada</label>
+            <select id="encuesta-evaluacion">
+              <option value="">Selecciona una evaluación...</option>
+            </select>
+          </div>
+          <div class="campo">
+            <label>Tipo de encuesta</label>
+            <select id="encuesta-tipo">
+              <option value="colaborador">Colaboradores</option>
+              <option value="gerencia">Gerencia</option>
+            </select>
+          </div>
+          <div class="campo" style="align-self:end;">
+            <button class="btn btn-verde" onclick="crearEncuesta()">Generar link</button>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-titulo">Encuestas activas</div>
+        <div class="tabla-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Empresa</th>
+                <th>Tipo</th>
+                <th>Link</th>
+                <th>Respuestas</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tabla-encuestas">
+              <tr><td colspan="6" class="loading">Cargando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SECCIÓN: INFORMES ══ -->
+    <div class="seccion" id="sec-informes">
+      <div class="seccion-titulo">Informes grupales</div>
+      <div class="seccion-subtitulo">Reportes anónimos para compartir con la empresa</div>
+      <div class="card">
+        <div class="card-titulo">Seleccionar evaluación completada</div>
+        <div class="form-grid">
+          <div class="campo">
+            <label>Evaluación</label>
+            <select id="informe-evaluacion" onchange="generarInforme()">
+              <option value="">Selecciona una evaluación...</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div id="informe-contenido" style="display:none;">
+        <!-- El informe se genera aquí dinámicamente -->
+      </div>
+    </div>
+
+    <!-- ══ SECCIÓN: USUARIOS ══ -->
+    <div class="seccion" id="sec-usuarios">
+      <div class="seccion-titulo">Usuarios</div>
+      <div class="seccion-subtitulo">Gestiona el acceso de empresas clientes y aliadas a la plataforma</div>
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+          <div class="card-titulo" style="margin:0; border:none; padding:0;">Usuarios activos</div>
+          <button class="btn btn-verde" onclick="abrirModalUsuario()">+ Nuevo usuario</button>
+        </div>
+        <div class="tabla-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Nombre</th>
+                <th>Email</th>
+                <th>Rol</th>
+                <th>Empresa asociada</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tabla-usuarios">
+              <tr><td colspan="5"><div class="loading"><div class="spinner"></div></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card" style="background:#f8fcf9; border-color:#c8ebd5;">
+        <div class="card-titulo" style="color:var(--verde-oscuro);">Como funciona el acceso</div>
+        <div style="font-size:14px; color:var(--texto-suave); line-height:1.8;">
+          <p><strong style="color:var(--texto);">Administrador (tu):</strong> ve todo — todas las empresas, evaluaciones, colaboradores e informes.</p>
+          <p><strong style="color:var(--texto);">Empresa aliada:</strong> ve solo las empresas que ella te derivo y sus informes finales.</p>
+          <p><strong style="color:var(--texto);">Empresa cliente:</strong> ve solo sus propios datos e informe grupal.</p>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /contenido -->
+</div><!-- /pantalla-app -->
+
+<!-- ═══════════════════════════════ MODALES ═══════════════════════════════ -->
+
+<!-- Modal: Nueva empresa -->
+<div class="modal-overlay" id="modal-empresa">
+  <div class="modal">
+    <div class="modal-titulo">Nueva empresa</div>
+    <div class="form-grid">
+      <div class="campo campo-completo">
+        <label>Nombre de la empresa</label>
+        <input type="text" id="emp-nombre" placeholder="Ej: Aguas San Pedro S.A." />
+      </div>
+      <div class="campo">
+        <label>RUT</label>
+        <input type="text" id="emp-rut" placeholder="76.000.000-0" />
+      </div>
+      <div class="campo">
+        <label>Tipo</label>
+        <select id="emp-tipo" onchange="toggleAliada()">
+          <option value="cliente">Cliente</option>
+          <option value="aliada">Aliada (prevención de riesgos)</option>
+        </select>
+      </div>
+      <div class="campo campo-completo" id="campo-aliada-id" style="display:none;">
+        <label>Derivada por aliada</label>
+        <select id="emp-aliada-id">
+          <option value="">Sin aliada</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-acciones">
+      <button class="btn btn-outline" onclick="cerrarModal('modal-empresa')">Cancelar</button>
+      <button class="btn btn-verde" onclick="guardarEmpresa()">Guardar empresa</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Nueva evaluación -->
+<div class="modal-overlay" id="modal-evaluacion">
+  <div class="modal">
+    <div class="modal-titulo">Nueva evaluación</div>
+    <div class="form-grid">
+      <div class="campo campo-completo">
+        <label>Empresa</label>
+        <select id="eval-empresa-id"></select>
+      </div>
+      <div class="campo campo-completo">
+        <label>Nombre de la sesión</label>
+        <input type="text" id="eval-nombre" placeholder="Ej: Check-up noviembre 2026" />
+      </div>
+      <div class="campo">
+        <label>Fecha</label>
+        <input type="date" id="eval-fecha" />
+      </div>
+    </div>
+    <div class="modal-acciones">
+      <button class="btn btn-outline" onclick="cerrarModal('modal-evaluacion')">Cancelar</button>
+      <button class="btn btn-verde" onclick="guardarEvaluacion()">Crear evaluación</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Nuevo colaborador + Check-up -->
+<div class="modal-overlay" id="modal-colaborador">
+  <div class="modal" style="max-width:700px;">
+    <div class="modal-titulo">Registrar colaborador — Check-up Nútrete®</div>
+
+    <div class="form-grid tres" style="margin-bottom:20px;">
+      <div class="campo">
+        <label>Código interno</label>
+        <input type="text" id="col-codigo" placeholder="Ej: C001" />
+      </div>
+      <div class="campo">
+        <label>Sexo</label>
+        <select id="col-sexo">
+          <option value="no_indica">No indica</option>
+          <option value="femenino">Femenino</option>
+          <option value="masculino">Masculino</option>
+          <option value="otro">Otro</option>
+        </select>
+      </div>
+      <div class="campo">
+        <label>Edad</label>
+        <input type="number" id="col-edad" placeholder="Años" min="18" max="80" />
+      </div>
+      <div class="campo campo-completo">
+        <label>Área / Departamento</label>
+        <input type="text" id="col-area" placeholder="Ej: Operaciones" />
+      </div>
+    </div>
+
+    <div style="font-size:13px; font-weight:700; color:var(--verde-oscuro); margin-bottom:12px; text-transform:uppercase; letter-spacing:0.5px;">
+      Variables clínicas
+    </div>
+
+    <div class="variable-row">
+      <div>
+        <div class="variable-nombre">Peso</div>
+        <div class="variable-referencia">kg</div>
+      </div>
+      <input type="number" class="campo input" id="v-peso" placeholder="70.0" step="0.1" oninput="calcularIMC()" style="padding:8px 10px; border:1.5px solid var(--gris-borde); border-radius:8px; font-size:14px; outline:none;" />
+      <div id="s-peso">—</div>
+    </div>
+
+    <div class="variable-row">
+      <div>
+        <div class="variable-nombre">Talla</div>
+        <div class="variable-referencia">cm</div>
+      </div>
+      <input type="number" class="campo input" id="v-talla" placeholder="165" step="0.1" oninput="calcularIMC()" style="padding:8px 10px; border:1.5px solid var(--gris-borde); border-radius:8px; font-size:14px; outline:none;" />
+      <div>—</div>
+    </div>
+
+    <div class="variable-row">
+      <div>
+        <div class="variable-nombre">IMC</div>
+        <div class="variable-referencia">Calculado automático</div>
+      </div>
+      <input type="number" id="v-imc" readonly placeholder="—" style="padding:8px 10px; border:1.5px solid var(--gris-borde); border-radius:8px; font-size:14px; background:#f8f8f8; outline:none;" />
+      <div id="s-imc">—</div>
+    </div>
+
+    <div class="variable-row">
+      <div>
+        <div class="variable-nombre">Masa grasa</div>
+        <div class="variable-referencia">%</div>
+      </div>
+      <input type="number" id="v-grasa-pct" placeholder="25.0" step="0.1" oninput="calcularSemaforo('grasa-pct')" style="padding:8px 10px; border:1.5px solid var(--gris-borde); border-radius:8px; font-size:14px; outline:none;" />
+      <div id="s-grasa-pct">—</div>
+    </div>
+
+    <div class="variable-row">
+      <div>
+        <div class="variable-nombre">Masa grasa</div>
+        <div class="variable-referencia">kg</div>
+      </div>
+      <input type="number" id="v-grasa-kg" placeholder="15.0" step="0.1" style="padding:8px 10px; border:1.5px solid var(--gris-borde); border-radius:8px; font-size:14px; outline:none;" />
+      <div>—</div>
+    </div>
+
+    <div class="variable-row">
+      <div>
+        <div class="variable-nombre">Masa muscular</div>
+        <div class="variable-referencia">kg</div>
+      </div>
+      <input type="number" id="v-muscular" placeholder="30.0" step="0.1" style="padding:8px 10px; border:1.5px solid var(--gris-borde); border-radius:8px; font-size:14px; outline:none;" />
+      <div>—</div>
+    </div>
+
+    <div class="variable-row">
+      <div>
+        <div class="variable-nombre">Masa ósea</div>
+        <div class="variable-referencia">kg</div>
+      </div>
+      <input type="number" id="v-osea" placeholder="2.5" step="0.1" style="padding:8px 10px; border:1.5px solid var(--gris-borde); border-radius:8px; font-size:14px; outline:none;" />
+      <div>—</div>
+    </div>
+
+    <div class="variable-row">
+      <div>
+        <div class="variable-nombre">Agua corporal</div>
+        <div class="variable-referencia">%</div>
+      </div>
+      <input type="number" id="v-agua" placeholder="55.0" step="0.1" style="padding:8px 10px; border:1.5px solid var(--gris-borde); border-radius:8px; font-size:14px; outline:none;" />
+      <div>—</div>
+    </div>
+
+    <div class="variable-row">
+      <div>
+        <div class="variable-nombre">Grasa visceral</div>
+        <div class="variable-referencia">Nivel 1–59</div>
+      </div>
+      <input type="number" id="v-visceral" placeholder="8" min="1" max="59" oninput="calcularSemaforo('visceral')" style="padding:8px 10px; border:1.5px solid var(--gris-borde); border-radius:8px; font-size:14px; outline:none;" />
+      <div id="s-visceral">—</div>
+    </div>
+
+    <div class="variable-row">
+      <div>
+        <div class="variable-nombre">Edad metabólica</div>
+        <div class="variable-referencia">Años</div>
+      </div>
+      <input type="number" id="v-edad-met" placeholder="35" style="padding:8px 10px; border:1.5px solid var(--gris-borde); border-radius:8px; font-size:14px; outline:none;" />
+      <div>—</div>
+    </div>
+
+    <div class="variable-row">
+      <div>
+        <div class="variable-nombre">Circunferencia cintura</div>
+        <div class="variable-referencia">cm</div>
+      </div>
+      <input type="number" id="v-cintura" placeholder="80.0" step="0.1" oninput="calcularICC()" style="padding:8px 10px; border:1.5px solid var(--gris-borde); border-radius:8px; font-size:14px; outline:none;" />
+      <div>—</div>
+    </div>
+
+    <div class="variable-row">
+      <div>
+        <div class="variable-nombre">Circunferencia cadera</div>
+        <div class="variable-referencia">cm</div>
+      </div>
+      <input type="number" id="v-cadera" placeholder="95.0" step="0.1" oninput="calcularICC()" style="padding:8px 10px; border:1.5px solid var(--gris-borde); border-radius:8px; font-size:14px; outline:none;" />
+      <div>—</div>
+    </div>
+
+    <div class="variable-row">
+      <div>
+        <div class="variable-nombre">ICC</div>
+        <div class="variable-referencia">Calculado automático</div>
+      </div>
+      <input type="number" id="v-icc" readonly placeholder="—" style="padding:8px 10px; border:1.5px solid var(--gris-borde); border-radius:8px; font-size:14px; background:#f8f8f8; outline:none;" />
+      <div id="s-icc">—</div>
+    </div>
+
+    <div class="variable-row">
+      <div>
+        <div class="variable-nombre">Presión sistólica</div>
+        <div class="variable-referencia">mmHg</div>
+      </div>
+      <input type="number" id="v-sistolica" placeholder="120" oninput="calcularSemaforo('presion')" style="padding:8px 10px; border:1.5px solid var(--gris-borde); border-radius:8px; font-size:14px; outline:none;" />
+      <div id="s-presion">—</div>
+    </div>
+
+    <div class="variable-row">
+      <div>
+        <div class="variable-nombre">Presión diastólica</div>
+        <div class="variable-referencia">mmHg</div>
+      </div>
+      <input type="number" id="v-diastolica" placeholder="80" oninput="calcularSemaforo('presion')" style="padding:8px 10px; border:1.5px solid var(--gris-borde); border-radius:8px; font-size:14px; outline:none;" />
+      <div>—</div>
+    </div>
+
+    <div class="variable-row">
+      <div>
+        <div class="variable-nombre">Glicemia capilar</div>
+        <div class="variable-referencia">mg/dL</div>
+      </div>
+      <input type="number" id="v-glicemia" placeholder="95" oninput="calcularSemaforo('glicemia')" style="padding:8px 10px; border:1.5px solid var(--gris-borde); border-radius:8px; font-size:14px; outline:none;" />
+      <div id="s-glicemia">—</div>
+    </div>
+
+    <div style="margin-top:20px;">
+      <div class="campo">
+        <label>Observaciones clínicas</label>
+        <textarea id="col-observaciones" placeholder="Hallazgos relevantes, notas de la evaluación..."></textarea>
+      </div>
+      <div class="campo" style="margin-top:12px;">
+        <label>Microacción autoelegida por el colaborador</label>
+        <input type="text" id="col-microaccion" placeholder="Lo que el colaborador decidió hacer esta semana..." />
+      </div>
+    </div>
+
+    <div class="modal-acciones">
+      <button class="btn btn-outline" onclick="cerrarModal('modal-colaborador')">Cancelar</button>
+      <button class="btn btn-verde" onclick="guardarColaborador()">Guardar evaluación</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Nuevo usuario -->
+<div class="modal-overlay" id="modal-usuario">
+  <div class="modal">
+    <div class="modal-titulo">Crear acceso para empresa</div>
+    <div class="form-grid">
+      <div class="campo campo-completo">
+        <label>Nombre completo</label>
+        <input type="text" id="usr-nombre" placeholder="Ej: María González" />
+      </div>
+      <div class="campo campo-completo">
+        <label>Email</label>
+        <input type="email" id="usr-email" placeholder="contacto@empresa.cl" />
+      </div>
+      <div class="campo">
+        <label>Contraseña inicial</label>
+        <input type="text" id="usr-password" placeholder="Ej: Empresa2026!" />
+      </div>
+      <div class="campo">
+        <label>Rol</label>
+        <select id="usr-rol" onchange="toggleEmpresaUsuario()">
+          <option value="empresa">Empresa cliente</option>
+          <option value="aliada">Empresa aliada</option>
+        </select>
+      </div>
+      <div class="campo campo-completo">
+        <label>Empresa asociada</label>
+        <select id="usr-empresa-id">
+          <option value="">Selecciona empresa...</option>
+        </select>
+      </div>
+    </div>
+    <div style="background:#f8fcf9; border:1px solid #c8ebd5; border-radius:8px; padding:12px 14px; margin-top:16px; font-size:13px; color:var(--texto-suave);">
+      Se creará el usuario y podrá ingresar con este email y contraseña. Compártelos de forma segura con la empresa.
+    </div>
+    <div class="modal-acciones">
+      <button class="btn btn-outline" onclick="cerrarModal('modal-usuario')">Cancelar</button>
+      <button class="btn btn-verde" onclick="guardarUsuario()">Crear acceso</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════
+// CONFIGURACIÓN SUPABASE
+// ══════════════════════════════════════════════
+const SUPABASE_URL = 'https://jpybenygergddnksbwzg.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpweWJlbnlnZXJnZGRua3Nid3pnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxMjMzOTUsImV4cCI6MjEwMzY5OTM5NX0.-KTVBiXLwvQzmRg7BqG5GmH8O2YEk08c3IuRM-VwTeE';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let usuarioActual = null;
+let rolActual = null;
+let empresaActual = null;
+let todasEmpresas = [];
+let todasEvaluaciones = [];
+
+// ══════════════════════════════════════════════
+// AUTH
+// ══════════════════════════════════════════════
+async function iniciarSesion() {
+  const email = document.getElementById('login-email').value.trim();
+  const pass = document.getElementById('login-password').value;
+  const errDiv = document.getElementById('login-error');
+  const btn = document.querySelector('.btn-primario');
+
+  errDiv.style.display = 'none';
+  btn.disabled = true;
+  btn.textContent = 'Ingresando...';
+
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+
+  if (error) {
+    errDiv.textContent = 'Correo o contraseña incorrectos.';
+    errDiv.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = 'Ingresar';
+    return;
+  }
+
+  await cargarUsuario(data.user.id);
+}
+
+async function cargarUsuario(uid) {
+  const { data } = await sb.from('usuarios').select('*, empresas(*)').eq('id', uid).single();
+  if (!data) {
+    mostrarError('Usuario no encontrado en el sistema. Contacta a Nútrete.');
+    await sb.auth.signOut();
+    return;
+  }
+  usuarioActual = data;
+  rolActual = data.rol;
+  empresaActual = data.empresa_id;
+
+  document.getElementById('nombre-usuario').textContent = data.nombre;
+  document.getElementById('rol-badge').textContent =
+    rolActual === 'admin' ? 'Administrador' :
+    rolActual === 'aliada' ? 'Empresa aliada' : 'Empresa cliente';
+
+  construirTabs();
+  document.getElementById('pantalla-login').style.display = 'none';
+  document.getElementById('pantalla-app').style.display = 'block';
+
+  await cargarDatosIniciales();
+}
+
+async function cerrarSesion() {
+  await sb.auth.signOut();
+  location.reload();
+}
+
+// ══════════════════════════════════════════════
+// TABS SEGÚN ROL
+// ══════════════════════════════════════════════
+function construirTabs() {
+  const tabsConfig = {
+    admin: [
+      { id: 'resumen', label: 'Resumen' },
+      { id: 'empresas', label: 'Empresas' },
+      { id: 'evaluaciones', label: 'Evaluaciones' },
+      { id: 'checkup', label: 'Check-up' },
+      { id: 'encuestas', label: 'Encuestas' },
+      { id: 'informes', label: 'Informes' },
+      { id: 'usuarios', label: 'Usuarios' },
+    ],
+    aliada: [
+      { id: 'resumen', label: 'Mis clientes' },
+      { id: 'informes', label: 'Informes' },
+    ],
+    empresa: [
+      { id: 'resumen', label: 'Mi empresa' },
+      { id: 'informes', label: 'Mi informe' },
+    ]
+  };
+
+  const tabs = tabsConfig[rolActual] || [];
+  const nav = document.getElementById('tabs-nav');
+  nav.innerHTML = tabs.map(t =>
+    `<button class="tab ${t.id === 'resumen' ? 'activo' : ''}" onclick="cambiarTab('${t.id}')">${t.label}</button>`
+  ).join('');
+}
+
+function cambiarTab(id) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('activo'));
+  document.querySelectorAll('.seccion').forEach(s => s.classList.remove('activa'));
+  document.querySelector(`.tab[onclick="cambiarTab('${id}')"]`).classList.add('activo');
+  document.getElementById(`sec-${id}`).classList.add('activa');
+  if (id === 'usuarios') cargarUsuarios();
+}
+
+// ══════════════════════════════════════════════
+// CARGA DE DATOS
+// ══════════════════════════════════════════════
+async function cargarDatosIniciales() {
+  await Promise.all([
+    cargarEmpresas(),
+    cargarEvaluaciones(),
+  ]);
+  cargarStats();
+  cargarEvaluacionesRecientes();
+  cargarEncuestas();
+}
+
+async function cargarEmpresas() {
+  let q = sb.from('empresas').select('*, aliada:aliada_id(nombre)').order('nombre');
+  if (rolActual === 'empresa') q = q.eq('id', empresaActual);
+  if (rolActual === 'aliada') q = q.eq('aliada_id', empresaActual);
+
+  const { data } = await q;
+  todasEmpresas = data || [];
+
+  // Tabla
+  const tbody = document.getElementById('tabla-empresas');
+  if (!tbody) return;
+  if (!todasEmpresas.length) {
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><div class="icono">🏢</div><p>No hay empresas registradas aún.</p><button class="btn btn-verde" onclick="abrirModalEmpresa()">+ Agregar primera empresa</button></div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = todasEmpresas.map(e => `
+    <tr>
+      <td><strong>${e.nombre}</strong></td>
+      <td>${e.rut || '—'}</td>
+      <td><span class="badge ${e.tipo === 'aliada' ? 'badge-cafe' : 'badge-verde'}">${e.tipo === 'aliada' ? 'Aliada' : 'Cliente'}</span></td>
+      <td>${e.aliada?.nombre || '—'}</td>
+      <td><span class="semaforo ${e.activa ? 'verde' : 'rojo'}">${e.activa ? 'Activa' : 'Inactiva'}</span></td>
+      <td><div class="acciones"><button class="btn btn-outline btn-pequeño" onclick="verEvaluacionesDeEmpresa('${e.id}')">Ver evaluaciones</button></div></td>
+    </tr>
+  `).join('');
+
+  // Selects
+  llenarSelectEmpresas();
+}
+
+function llenarSelectEmpresas() {
+  const clientes = todasEmpresas.filter(e => e.tipo === 'cliente');
+  const aliadas = todasEmpresas.filter(e => e.tipo === 'aliada');
+
+  ['eval-empresa-id', 'encuesta-evaluacion'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    // para eval-empresa-id es el select de empresa
+    if (id === 'eval-empresa-id') {
+      sel.innerHTML = '<option value="">Selecciona empresa...</option>' +
+        clientes.map(e => `<option value="${e.id}">${e.nombre}</option>`).join('');
+    }
+  });
+
+  const selAliada = document.getElementById('emp-aliada-id');
+  if (selAliada) {
+    selAliada.innerHTML = '<option value="">Sin aliada</option>' +
+      aliadas.map(e => `<option value="${e.id}">${e.nombre}</option>`).join('');
+  }
+}
+
+async function cargarEvaluaciones() {
+  let q = sb.from('evaluaciones').select('*, empresa:empresa_id(nombre, aliada_id)').order('fecha', { ascending: false });
+  if (rolActual === 'empresa') q = q.eq('empresa_id', empresaActual);
+  if (rolActual === 'aliada') {
+    const misClientes = todasEmpresas.map(e => e.id);
+    if (misClientes.length) q = q.in('empresa_id', misClientes);
+  }
+
+  const { data } = await q;
+  todasEvaluaciones = data || [];
+
+  const tbody = document.getElementById('tabla-evaluaciones');
+  if (!tbody) return;
+
+  if (!todasEvaluaciones.length) {
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><div class="icono">📋</div><p>No hay evaluaciones aún.</p></div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = todasEvaluaciones.map(ev => `
+    <tr>
+      <td><strong>${ev.empresa?.nombre || '—'}</strong></td>
+      <td>${ev.nombre_sesion || 'Sin nombre'}</td>
+      <td>${formatFecha(ev.fecha)}</td>
+      <td>${ev.total_participantes}</td>
+      <td><span class="semaforo ${ev.estado === 'completada' ? 'verde' : 'amarillo'}">${ev.estado === 'completada' ? 'Completada' : 'En proceso'}</span></td>
+      <td>
+        <div class="acciones">
+          <button class="btn btn-outline btn-pequeño" onclick="irCheckup('${ev.id}')">Check-up</button>
+          ${rolActual === 'admin' ? `<button class="btn btn-verde btn-pequeño" onclick="completarEvaluacion('${ev.id}')">Completar</button>` : ''}
+        </div>
+      </td>
+    </tr>
+  `).join('');
+
+  // Llenar selects de evaluaciones
+  const selOpts = todasEvaluaciones.map(ev =>
+    `<option value="${ev.id}">${ev.empresa?.nombre || ''} — ${ev.nombre_sesion || 'Sin nombre'} (${formatFecha(ev.fecha)})</option>`
+  ).join('');
+
+  ['checkup-evaluacion', 'informe-evaluacion'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (sel) sel.innerHTML = '<option value="">Selecciona una evaluación...</option>' + selOpts;
+  });
+
+  // select de encuesta-evaluacion
+  const selEnc = document.getElementById('encuesta-evaluacion');
+  if (selEnc) selEnc.innerHTML = '<option value="">Selecciona una evaluación...</option>' + selOpts;
+}
+
+function cargarStats() {
+  const container = document.getElementById('stats-container');
+  const empresasCount = todasEmpresas.filter(e => e.tipo === 'cliente').length;
+  const evCount = todasEvaluaciones.length;
+  const completadas = todasEvaluaciones.filter(e => e.estado === 'completada').length;
+  const totalParticipantes = todasEvaluaciones.reduce((s, e) => s + (e.total_participantes || 0), 0);
+
+  container.innerHTML = `
+    <div class="stat-card"><div class="stat-numero">${empresasCount}</div><div class="stat-label">Empresas clientes activas</div></div>
+    <div class="stat-card"><div class="stat-numero">${evCount}</div><div class="stat-label">Evaluaciones en total</div></div>
+    <div class="stat-card"><div class="stat-numero">${completadas}</div><div class="stat-label">Evaluaciones completadas</div></div>
+    <div class="stat-card"><div class="stat-numero">${totalParticipantes}</div><div class="stat-label">Colaboradores evaluados</div></div>
+  `;
+}
+
+async function cargarEvaluacionesRecientes() {
+  const tbody = document.getElementById('resumen-por-empresa');
+  if (!tbody) return;
+
+  const clientes = todasEmpresas.filter(e => e.tipo === 'cliente');
+
+  if (!clientes.length) {
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><div class="icono">🏢</div><p>Aún no hay empresas clientes. Agrégalas desde la pestaña Empresas.</p></div></td></tr>`;
+    return;
+  }
+
+  // Cargar encuestas con conteo de respuestas
+  const { data: encuestas } = await sb.from('encuestas')
+    .select('*, evaluacion:evaluacion_id(empresa_id)')
+    .order('created_at', { ascending: false });
+
+  tbody.innerHTML = clientes.map(empresa => {
+    // Evaluación más reciente de esta empresa
+    const evEmpresa = todasEvaluaciones.filter(ev => ev.empresa_id === empresa.id);
+    const evActiva = evEmpresa.find(ev => ev.estado === 'en_proceso') || evEmpresa[0];
+
+    // Encuestas de esta empresa
+    const encEmpresa = (encuestas || []).filter(e => e.evaluacion?.empresa_id === empresa.id);
+    const encTrabajadores = encEmpresa.find(e => e.tipo === 'colaborador');
+    const encGerencia = encEmpresa.find(e => e.tipo === 'gerencia');
+
+    // Estado general
+    const totalEv = evEmpresa.length;
+    const participantes = evActiva?.total_participantes || 0;
+
+    const estadoBadge = totalEv === 0
+      ? `<span class="semaforo rojo">Sin evaluación</span>`
+      : evActiva?.estado === 'completada'
+        ? `<span class="semaforo verde">Completada</span>`
+        : `<span class="semaforo amarillo">En proceso</span>`;
+
+    const encTrabBadge = encTrabajadores
+      ? `<span class="semaforo ${encTrabajadores.activa ? 'amarillo' : 'verde'}">${encTrabajadores.activa ? 'Enviada · esperando' : 'Cerrada'}</span>`
+      : `<span class="semaforo rojo">No enviada</span>`;
+
+    const encGerBadge = encGerencia
+      ? `<span class="semaforo ${encGerencia.activa ? 'amarillo' : 'verde'}">${encGerencia.activa ? 'Enviada · esperando' : 'Cerrada'}</span>`
+      : `<span class="semaforo rojo">No enviada</span>`;
+
+    return `<tr>
+      <td><strong>${empresa.nombre}</strong>${empresa.aliada_id ? `<br><span style="font-size:11px;color:var(--texto-suave);">vía aliada</span>` : ''}</td>
+      <td>${evActiva ? `${evActiva.nombre_sesion || 'Sin nombre'}<br><span style="font-size:11px;color:var(--texto-suave);">${formatFecha(evActiva.fecha)}</span>` : '—'}</td>
+      <td style="text-align:center;">
+        <strong style="font-size:18px;color:var(--verde);">${participantes}</strong>
+        ${participantes > 0 ? `<br><span style="font-size:11px;color:var(--texto-suave);">colaboradores</span>` : ''}
+      </td>
+      <td>${encTrabBadge}</td>
+      <td>${encGerBadge}</td>
+      <td>${estadoBadge}</td>
+    </tr>`;
+  }).join('');
+}
+
+async function cargarEncuestas() {
+  const tbody = document.getElementById('tabla-encuestas');
+  if (!tbody) return;
+
+  const { data } = await sb.from('encuestas')
+    .select('*, evaluacion:evaluacion_id(nombre_sesion, empresa:empresa_id(nombre))')
+    .order('created_at', { ascending: false });
+
+  if (!data || !data.length) {
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><div class="icono">📝</div><p>No hay encuestas creadas aún.</p></div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = data.map(enc => {
+    const link = `${location.origin}/encuesta.html?token=${enc.token}`;
+    return `<tr>
+      <td>${enc.evaluacion?.empresa?.nombre || '—'}</td>
+      <td><span class="badge ${enc.tipo === 'colaborador' ? 'badge-verde' : 'badge-cafe'}">${enc.tipo}</span></td>
+      <td>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <input type="text" value="${link}" readonly style="font-size:11px; padding:4px 8px; border:1px solid var(--gris-borde); border-radius:6px; width:240px; color:var(--texto-suave);" />
+          <button class="btn btn-outline btn-pequeño" onclick="copiarLink('${link}')">Copiar</button>
+        </div>
+      </td>
+      <td>—</td>
+      <td><span class="semaforo ${enc.activa ? 'verde' : 'rojo'}">${enc.activa ? 'Activa' : 'Cerrada'}</span></td>
+      <td><button class="btn btn-outline btn-pequeño" onclick="cerrarEncuesta('${enc.id}')">Cerrar</button></td>
+    </tr>`;
+  }).join('');
+}
+
+async function cargarColaboradores() {
+  const evalId = document.getElementById('checkup-evaluacion').value;
+  const card = document.getElementById('card-colaboradores');
+  if (!evalId) { card.style.display = 'none'; return; }
+  card.style.display = 'block';
+
+  const { data } = await sb.from('colaboradores')
+    .select('*, resultados_checkup(*)')
+    .eq('evaluacion_id', evalId)
+    .order('created_at');
+
+  const tbody = document.getElementById('tabla-colaboradores');
+  if (!data || !data.length) {
+    tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><div class="icono">👤</div><p>Sin colaboradores aún. Agrega el primero.</p></div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = data.map(c => {
+    const r = c.resultados_checkup?.[0] || {};
+    return `<tr>
+      <td><strong>${c.codigo || c.id.slice(0,6)}</strong></td>
+      <td>${c.sexo || '—'}</td>
+      <td>${c.edad || '—'}</td>
+      <td>${r.imc ? `${r.imc} <span class="semaforo ${r.semaforo_imc || 'gris'}" style="font-size:10px;">${r.semaforo_imc || ''}</span>` : '—'}</td>
+      <td>${r.masa_grasa_pct ? `${r.masa_grasa_pct}%` : '—'}</td>
+      <td>${r.presion_sistolica ? `${r.presion_sistolica}/${r.presion_diastolica}` : '—'}</td>
+      <td>${r.glicemia_capilar ? `${r.glicemia_capilar} mg/dL` : '—'}</td>
+      <td><button class="btn btn-verde btn-pequeño" onclick="abrirCheckupCompleto('${evalId}','${c.id}','${r.id||''}')">📋 Ver ficha</button></td>
+    </tr>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════
+// ACCIONES
+// ══════════════════════════════════════════════
+async function guardarEmpresa() {
+  const nombre = document.getElementById('emp-nombre').value.trim();
+  const rut = document.getElementById('emp-rut').value.trim();
+  const tipo = document.getElementById('emp-tipo').value;
+  const aliada_id = document.getElementById('emp-aliada-id').value || null;
+
+  if (!nombre) { mostrarToast('El nombre es obligatorio', true); return; }
+
+  const { error } = await sb.from('empresas').insert({ nombre, rut, tipo, aliada_id });
+  if (error) { mostrarToast('Error al guardar: ' + error.message, true); return; }
+
+  mostrarToast('Empresa guardada correctamente');
+  cerrarModal('modal-empresa');
+  await cargarEmpresas();
+  cargarStats();
+}
+
+async function guardarEvaluacion() {
+  const empresa_id = document.getElementById('eval-empresa-id').value;
+  const nombre_sesion = document.getElementById('eval-nombre').value.trim();
+  const fecha = document.getElementById('eval-fecha').value;
+
+  if (!empresa_id || !nombre_sesion || !fecha) {
+    mostrarToast('Completa todos los campos', true); return;
+  }
+
+  const { error } = await sb.from('evaluaciones').insert({ empresa_id, nombre_sesion, fecha });
+  if (error) { mostrarToast('Error: ' + error.message, true); return; }
+
+  mostrarToast('Evaluación creada');
+  cerrarModal('modal-evaluacion');
+  await cargarEvaluaciones();
+  cargarStats();
+  cargarEvaluacionesRecientes();
+}
+
+async function guardarColaborador() {
+  const evalId = document.getElementById('checkup-evaluacion').value;
+  if (!evalId) { mostrarToast('Selecciona una evaluación primero', true); return; }
+
+  const colData = {
+    evaluacion_id: evalId,
+    codigo: document.getElementById('col-codigo').value.trim() || null,
+    sexo: document.getElementById('col-sexo').value,
+    edad: parseInt(document.getElementById('col-edad').value) || null,
+    area: document.getElementById('col-area').value.trim() || null,
+  };
+
+  const { data: col, error: colErr } = await sb.from('colaboradores').insert(colData).select().single();
+  if (colErr) { mostrarToast('Error al guardar colaborador: ' + colErr.message, true); return; }
+
+  const imc = parseFloat(document.getElementById('v-imc').value) || null;
+  const sistolica = parseInt(document.getElementById('v-sistolica').value) || null;
+  const diastolica = parseInt(document.getElementById('v-diastolica').value) || null;
+  const glicemia = parseInt(document.getElementById('v-glicemia').value) || null;
+  const grasaPct = parseFloat(document.getElementById('v-grasa-pct').value) || null;
+  const visceral = parseInt(document.getElementById('v-visceral').value) || null;
+
+  const resultData = {
+    colaborador_id: col.id,
+    peso_kg: parseFloat(document.getElementById('v-peso').value) || null,
+    talla_cm: parseFloat(document.getElementById('v-talla').value) || null,
+    imc,
+    masa_grasa_pct: grasaPct,
+    masa_grasa_kg: parseFloat(document.getElementById('v-grasa-kg').value) || null,
+    masa_muscular_kg: parseFloat(document.getElementById('v-muscular').value) || null,
+    masa_osea_kg: parseFloat(document.getElementById('v-osea').value) || null,
+    agua_corporal_pct: parseFloat(document.getElementById('v-agua').value) || null,
+    grasa_visceral: visceral,
+    edad_metabolica: parseInt(document.getElementById('v-edad-met').value) || null,
+    circunferencia_cintura_cm: parseFloat(document.getElementById('v-cintura').value) || null,
+    circunferencia_cadera_cm: parseFloat(document.getElementById('v-cadera').value) || null,
+    icc: parseFloat(document.getElementById('v-icc').value) || null,
+    presion_sistolica: sistolica,
+    presion_diastolica: diastolica,
+    glicemia_capilar: glicemia,
+    semaforo_imc: calcularSemaforoIMC(imc),
+    semaforo_grasa_pct: calcularSemaforoGrasa(grasaPct, colData.sexo),
+    semaforo_grasa_visceral: calcularSemaforoVisceral(visceral),
+    semaforo_presion: calcularSemaforoPresion(sistolica, diastolica),
+    semaforo_glicemia: calcularSemaforoGlicemia(glicemia),
+    observaciones: document.getElementById('col-observaciones').value.trim() || null,
+    microaccion: document.getElementById('col-microaccion').value.trim() || null,
+  };
+
+  const { error: resErr } = await sb.from('resultados_checkup').insert(resultData);
+  if (resErr) { mostrarToast('Error al guardar resultados: ' + resErr.message, true); return; }
+
+  // Actualizar total participantes
+  const { data: cols } = await sb.from('colaboradores').select('id').eq('evaluacion_id', evalId);
+  await sb.from('evaluaciones').update({ total_participantes: cols.length }).eq('id', evalId);
+
+  mostrarToast('Colaborador guardado correctamente');
+  cerrarModal('modal-colaborador');
+  limpiarFormColaborador();
+  await cargarColaboradores();
+}
+
+async function editarColaborador(colId, resultadoId) {
+  // Cargar datos del colaborador
+  const { data: col } = await sb.from('colaboradores').select('*').eq('id', colId).single();
+  const { data: res } = resultadoId ? await sb.from('resultados_checkup').select('*').eq('id', resultadoId).single() : { data: null };
+
+  if (!col) { mostrarToast('Error al cargar datos', true); return; }
+
+  // Llenar datos del colaborador
+  document.getElementById('col-codigo').value = col.codigo || '';
+  document.getElementById('col-sexo').value = col.sexo || 'no_indica';
+  document.getElementById('col-edad').value = col.edad || '';
+  document.getElementById('col-area').value = col.area || '';
+
+  // Llenar variables clínicas si existen
+  if (res) {
+    document.getElementById('v-peso').value = res.peso_kg || '';
+    document.getElementById('v-talla').value = res.talla_cm || '';
+    document.getElementById('v-imc').value = res.imc || '';
+    document.getElementById('v-grasa-pct').value = res.masa_grasa_pct || '';
+    document.getElementById('v-grasa-kg').value = res.masa_grasa_kg || '';
+    document.getElementById('v-muscular').value = res.masa_muscular_kg || '';
+    document.getElementById('v-osea').value = res.masa_osea_kg || '';
+    document.getElementById('v-agua').value = res.agua_corporal_pct || '';
+    document.getElementById('v-visceral').value = res.grasa_visceral || '';
+    document.getElementById('v-edad-met').value = res.edad_metabolica || '';
+    document.getElementById('v-cintura').value = res.circunferencia_cintura_cm || '';
+    document.getElementById('v-cadera').value = res.circunferencia_cadera_cm || '';
+    document.getElementById('v-icc').value = res.icc || '';
+    document.getElementById('v-sistolica').value = res.presion_sistolica || '';
+    document.getElementById('v-diastolica').value = res.presion_diastolica || '';
+    document.getElementById('v-glicemia').value = res.glicemia_capilar || '';
+    document.getElementById('col-observaciones').value = res.observaciones || '';
+    document.getElementById('col-microaccion').value = res.microaccion || '';
+
+    // Mostrar semáforos actuales
+    if (res.semaforo_imc) document.getElementById('s-imc').innerHTML = `<span class="semaforo ${res.semaforo_imc}">${res.semaforo_imc}</span>`;
+    if (res.semaforo_grasa_pct) document.getElementById('s-grasa-pct').innerHTML = `<span class="semaforo ${res.semaforo_grasa_pct}">${res.semaforo_grasa_pct}</span>`;
+    if (res.semaforo_grasa_visceral) document.getElementById('s-visceral').innerHTML = `<span class="semaforo ${res.semaforo_grasa_visceral}">${res.semaforo_grasa_visceral}</span>`;
+    if (res.semaforo_presion) document.getElementById('s-presion').innerHTML = `<span class="semaforo ${res.semaforo_presion}">${res.semaforo_presion}</span>`;
+    if (res.semaforo_glicemia) document.getElementById('s-glicemia').innerHTML = `<span class="semaforo ${res.semaforo_glicemia}">${res.semaforo_glicemia}</span>`;
+  }
+
+  // Cambiar título y botón del modal a modo edición
+  document.querySelector('#modal-colaborador .modal-titulo').textContent = 'Editar colaborador — Check-up Nútrete®';
+  const btnGuardar = document.querySelector('#modal-colaborador .modal-acciones .btn-verde');
+  btnGuardar.textContent = 'Guardar cambios';
+  btnGuardar.onclick = () => guardarEdicionColaborador(colId, resultadoId);
+
+  document.getElementById('modal-colaborador').classList.add('abierto');
+}
+
+async function guardarEdicionColaborador(colId, resultadoId) {
+  // Actualizar datos del colaborador
+  await sb.from('colaboradores').update({
+    codigo: document.getElementById('col-codigo').value.trim() || null,
+    sexo: document.getElementById('col-sexo').value,
+    edad: parseInt(document.getElementById('col-edad').value) || null,
+    area: document.getElementById('col-area').value.trim() || null,
+  }).eq('id', colId);
+
+  const imc = parseFloat(document.getElementById('v-imc').value) || null;
+  const sistolica = parseInt(document.getElementById('v-sistolica').value) || null;
+  const diastolica = parseInt(document.getElementById('v-diastolica').value) || null;
+  const glicemia = parseInt(document.getElementById('v-glicemia').value) || null;
+  const grasaPct = parseFloat(document.getElementById('v-grasa-pct').value) || null;
+  const visceral = parseInt(document.getElementById('v-visceral').value) || null;
+  const sexo = document.getElementById('col-sexo').value;
+
+  const resultData = {
+    peso_kg: parseFloat(document.getElementById('v-peso').value) || null,
+    talla_cm: parseFloat(document.getElementById('v-talla').value) || null,
+    imc,
+    masa_grasa_pct: grasaPct,
+    masa_grasa_kg: parseFloat(document.getElementById('v-grasa-kg').value) || null,
+    masa_muscular_kg: parseFloat(document.getElementById('v-muscular').value) || null,
+    masa_osea_kg: parseFloat(document.getElementById('v-osea').value) || null,
+    agua_corporal_pct: parseFloat(document.getElementById('v-agua').value) || null,
+    grasa_visceral: visceral,
+    edad_metabolica: parseInt(document.getElementById('v-edad-met').value) || null,
+    circunferencia_cintura_cm: parseFloat(document.getElementById('v-cintura').value) || null,
+    circunferencia_cadera_cm: parseFloat(document.getElementById('v-cadera').value) || null,
+    icc: parseFloat(document.getElementById('v-icc').value) || null,
+    presion_sistolica: sistolica,
+    presion_diastolica: diastolica,
+    glicemia_capilar: glicemia,
+    semaforo_imc: calcularSemaforoIMC(imc),
+    semaforo_grasa_pct: calcularSemaforoGrasa(grasaPct, sexo),
+    semaforo_grasa_visceral: calcularSemaforoVisceral(visceral),
+    semaforo_presion: calcularSemaforoPresion(sistolica, diastolica),
+    semaforo_glicemia: calcularSemaforoGlicemia(glicemia),
+    observaciones: document.getElementById('col-observaciones').value.trim() || null,
+    microaccion: document.getElementById('col-microaccion').value.trim() || null,
+  };
+
+  if (resultadoId) {
+    await sb.from('resultados_checkup').update(resultData).eq('id', resultadoId);
+  } else {
+    await sb.from('resultados_checkup').insert({ ...resultData, colaborador_id: colId });
+  }
+
+  mostrarToast('Cambios guardados correctamente');
+  cerrarModal('modal-colaborador');
+
+  // Restaurar modal a modo creación
+  document.querySelector('#modal-colaborador .modal-titulo').textContent = 'Registrar colaborador — Check-up Nútrete®';
+  const btnGuardar = document.querySelector('#modal-colaborador .modal-acciones .btn-verde');
+  btnGuardar.textContent = 'Guardar evaluación';
+  btnGuardar.onclick = guardarColaborador;
+
+  limpiarFormColaborador();
+  await cargarColaboradores();
+}
+
+async function crearEncuesta() {
+  const evaluacion_id = document.getElementById('encuesta-evaluacion').value;
+  const tipo = document.getElementById('encuesta-tipo').value;
+  if (!evaluacion_id) { mostrarToast('Selecciona una evaluación', true); return; }
+
+  const { error } = await sb.from('encuestas').insert({ evaluacion_id, tipo });
+  if (error) { mostrarToast('Error: ' + error.message, true); return; }
+
+  mostrarToast('Encuesta creada — link generado');
+  await cargarEncuestas();
+}
+
+async function completarEvaluacion(id) {
+  await sb.from('evaluaciones').update({ estado: 'completada' }).eq('id', id);
+  mostrarToast('Evaluación marcada como completada');
+  await cargarEvaluaciones();
+}
+
+async function cerrarEncuesta(id) {
+  await sb.from('encuestas').update({ activa: false }).eq('id', id);
+  mostrarToast('Encuesta cerrada');
+  await cargarEncuestas();
+}
+
+function nuevoCheckup() {
+  const evalId = document.getElementById('checkup-evaluacion').value;
+  if(!evalId) { mostrarToast('Selecciona una evaluación primero', true); return; }
+  window.open(`checkup.html?eval=${evalId}`, '_blank');
+}
+
+function abrirCheckupCompleto(evalId, colId, resId) {
+  const url = `checkup.html?eval=${evalId}&col=${colId}${resId?'&res='+resId:''}`;
+  window.open(url, '_blank');
+}
+
+function verEvaluacionesDeEmpresa(empresaId) {
+  cambiarTab('evaluaciones');
+}
+
+async function generarInforme() {
+  const evalId = document.getElementById('informe-evaluacion').value;
+  const cont = document.getElementById('informe-contenido');
+  if (!evalId) { cont.style.display = 'none'; return; }
+
+  cont.style.display = 'block';
+  cont.innerHTML = '<div class="loading"><div class="spinner"></div>Generando informe...</div>';
+
+  const { data: cols } = await sb.from('colaboradores')
+    .select('*, resultados_checkup(*)')
+    .eq('evaluacion_id', evalId);
+
+  if (!cols || !cols.length) {
+    cont.innerHTML = '<div class="card"><div class="empty-state"><p>No hay colaboradores evaluados en esta sesión aún.</p></div></div>';
+    return;
+  }
+
+  const resultados = cols.map(c => c.resultados_checkup?.[0]).filter(Boolean);
+  const n = resultados.length;
+
+  const prom = (key) => {
+    const vals = resultados.map(r => r[key]).filter(v => v !== null && v !== undefined);
+    return vals.length ? (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1) : '—';
+  };
+
+  const semCount = (key, val) => resultados.filter(r => r[key] === val).length;
+
+  cont.innerHTML = `
+    <div class="card">
+      <div class="card-titulo">Resumen ejecutivo — ${n} colaboradores evaluados</div>
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-numero">${n}</div><div class="stat-label">Colaboradores evaluados</div></div>
+        <div class="stat-card"><div class="stat-numero">${prom('imc')}</div><div class="stat-label">IMC promedio</div></div>
+        <div class="stat-card"><div class="stat-numero">${prom('masa_grasa_pct')}%</div><div class="stat-label">Grasa corporal promedio</div></div>
+        <div class="stat-card"><div class="stat-numero">${prom('glicemia_capilar')}</div><div class="stat-label">Glicemia promedio (mg/dL)</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-titulo">Distribución por semáforo</div>
+      ${generarFilaSemaforo('IMC', semCount('semaforo_imc','verde'), semCount('semaforo_imc','amarillo'), semCount('semaforo_imc','rojo'), n)}
+      ${generarFilaSemaforo('Grasa corporal', semCount('semaforo_grasa_pct','verde'), semCount('semaforo_grasa_pct','amarillo'), semCount('semaforo_grasa_pct','rojo'), n)}
+      ${generarFilaSemaforo('Presión arterial', semCount('semaforo_presion','verde'), semCount('semaforo_presion','amarillo'), semCount('semaforo_presion','rojo'), n)}
+      ${generarFilaSemaforo('Glicemia capilar', semCount('semaforo_glicemia','verde'), semCount('semaforo_glicemia','amarillo'), semCount('semaforo_glicemia','rojo'), n)}
+    </div>
+    <div class="card" style="text-align:center; padding:32px;">
+      <div style="color:var(--verde-oscuro); font-weight:700; margin-bottom:8px;">¿Qué sigue?</div>
+      <p style="color:var(--texto-suave); font-size:14px; margin-bottom:20px;">Los resultados muestran oportunidades concretas de mejora. El programa <strong>Cultivo de Hábitos</strong> (3 meses) es el paso natural.</p>
+      <button class="btn btn-verde" onclick="window.print()">Imprimir informe</button>
+    </div>
+  `;
+}
+
+function generarFilaSemaforo(label, verde, amarillo, rojo, total) {
+  const pctV = total ? Math.round(verde/total*100) : 0;
+  const pctA = total ? Math.round(amarillo/total*100) : 0;
+  const pctR = total ? Math.round(rojo/total*100) : 0;
+  return `
+    <div style="margin-bottom:16px;">
+      <div style="font-size:13px; font-weight:600; margin-bottom:8px;">${label}</div>
+      <div style="display:flex; height:24px; border-radius:6px; overflow:hidden;">
+        <div style="width:${pctV}%; background:#009444; transition:width 0.5s;"></div>
+        <div style="width:${pctA}%; background:#e67e22; transition:width 0.5s;"></div>
+        <div style="width:${pctR}%; background:#c0392b; transition:width 0.5s;"></div>
+      </div>
+      <div style="display:flex; gap:16px; margin-top:6px; font-size:12px; color:var(--texto-suave);">
+        <span style="color:#07542F;">● Normal: ${verde} (${pctV}%)</span>
+        <span style="color:#a05a00;">● Alerta: ${amarillo} (${pctA}%)</span>
+        <span style="color:#c0392b;">● Riesgo: ${rojo} (${pctR}%)</span>
+      </div>
+    </div>`;
+}
+
+// ══════════════════════════════════════════════
+// SEMÁFOROS CLÍNICOS
+// ══════════════════════════════════════════════
+function calcularIMC() {
+  const peso = parseFloat(document.getElementById('v-peso').value);
+  const talla = parseFloat(document.getElementById('v-talla').value);
+  if (!peso || !talla) return;
+  const imc = (peso / Math.pow(talla / 100, 2)).toFixed(1);
+  document.getElementById('v-imc').value = imc;
+  const sem = calcularSemaforoIMC(parseFloat(imc));
+  document.getElementById('s-imc').innerHTML = `<span class="semaforo ${sem}">${sem}</span>`;
+}
+
+function calcularICC() {
+  const cintura = parseFloat(document.getElementById('v-cintura').value);
+  const cadera = parseFloat(document.getElementById('v-cadera').value);
+  if (!cintura || !cadera) return;
+  const icc = (cintura / cadera).toFixed(3);
+  document.getElementById('v-icc').value = icc;
+  const sexo = document.getElementById('col-sexo').value;
+  const sem = parseFloat(icc) > (sexo === 'femenino' ? 0.85 : 1.0) ? 'rojo' : 'verde';
+  document.getElementById('s-icc').innerHTML = `<span class="semaforo ${sem}">${sem}</span>`;
+}
+
+function calcularSemaforo(tipo) {
+  if (tipo === 'grasa-pct') {
+    const v = parseFloat(document.getElementById('v-grasa-pct').value);
+    const sexo = document.getElementById('col-sexo').value;
+    const sem = calcularSemaforoGrasa(v, sexo);
+    document.getElementById('s-grasa-pct').innerHTML = `<span class="semaforo ${sem}">${sem}</span>`;
+  }
+  if (tipo === 'visceral') {
+    const v = parseInt(document.getElementById('v-visceral').value);
+    const sem = calcularSemaforoVisceral(v);
+    document.getElementById('s-visceral').innerHTML = `<span class="semaforo ${sem}">${sem}</span>`;
+  }
+  if (tipo === 'presion') {
+    const s = parseInt(document.getElementById('v-sistolica').value);
+    const d = parseInt(document.getElementById('v-diastolica').value);
+    const sem = calcularSemaforoPresion(s, d);
+    document.getElementById('s-presion').innerHTML = `<span class="semaforo ${sem}">${sem}</span>`;
+  }
+  if (tipo === 'glicemia') {
+    const v = parseInt(document.getElementById('v-glicemia').value);
+    const sem = calcularSemaforoGlicemia(v);
+    document.getElementById('s-glicemia').innerHTML = `<span class="semaforo ${sem}">${sem}</span>`;
+  }
+}
+
+function calcularSemaforoIMC(imc) {
+  if (!imc) return 'gris';
+  if (imc < 18.5) return 'amarillo';
+  if (imc < 25) return 'verde';
+  if (imc < 30) return 'amarillo';
+  return 'rojo';
+}
+
+function calcularSemaforoGrasa(pct, sexo) {
+  if (!pct) return 'gris';
+  if (sexo === 'femenino') {
+    if (pct < 21) return 'amarillo';
+    if (pct < 33) return 'verde';
+    return 'rojo';
+  } else {
+    if (pct < 8) return 'amarillo';
+    if (pct < 25) return 'verde';
+    return 'rojo';
+  }
+}
+
+function calcularSemaforoVisceral(v) {
+  if (!v) return 'gris';
+  if (v <= 9) return 'verde';
+  if (v <= 14) return 'amarillo';
+  return 'rojo';
+}
+
+function calcularSemaforoPresion(s, d) {
+  if (!s || !d) return 'gris';
+  if (s < 120 && d < 80) return 'verde';
+  if (s < 140 && d < 90) return 'amarillo';
+  return 'rojo';
+}
+
+function calcularSemaforoGlicemia(v) {
+  if (!v) return 'gris';
+  if (v < 100) return 'verde';
+  if (v < 126) return 'amarillo';
+  return 'rojo';
+}
+
+// ══════════════════════════════════════════════
+// MODALES
+// ══════════════════════════════════════════════
+function abrirModalEmpresa() { document.getElementById('modal-empresa').classList.add('abierto'); }
+function abrirModalEvaluacion() {
+  document.getElementById('eval-fecha').value = new Date().toISOString().slice(0,10);
+  document.getElementById('modal-evaluacion').classList.add('abierto');
+}
+function abrirModalColaborador() {
+  const evalId = document.getElementById('checkup-evaluacion').value;
+  if (!evalId) { mostrarToast('Selecciona una evaluación primero', true); return; }
+  document.getElementById('modal-colaborador').classList.add('abierto');
+}
+function cerrarModal(id) { document.getElementById(id).classList.remove('abierto'); }
+
+function toggleAliada() {
+  const tipo = document.getElementById('emp-tipo').value;
+  document.getElementById('campo-aliada-id').style.display = tipo === 'cliente' ? 'block' : 'none';
+}
+
+function limpiarFormColaborador() {
+  ['col-codigo','col-edad','col-area','v-peso','v-talla','v-imc',
+   'v-grasa-pct','v-grasa-kg','v-muscular','v-osea','v-agua','v-visceral',
+   'v-edad-met','v-cintura','v-cadera','v-icc','v-sistolica','v-diastolica',
+   'v-glicemia','col-observaciones','col-microaccion'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  ['s-imc','s-grasa-pct','s-visceral','s-presion','s-glicemia','s-icc'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = '—';
+  });
+}
+
+// ══════════════════════════════════════════════
+// UTILIDADES
+// ══════════════════════════════════════════════
+function formatFecha(f) {
+  if (!f) return '—';
+  const d = new Date(f + 'T12:00:00');
+  return d.toLocaleDateString('es-CL', { day:'numeric', month:'short', year:'numeric' });
+}
+
+function copiarLink(link) {
+  navigator.clipboard.writeText(link);
+  mostrarToast('Link copiado al portapapeles');
+}
+
+function mostrarToast(msg, esError = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast visible' + (esError ? ' error' : '');
+  setTimeout(() => t.className = 'toast', 3000);
+}
+
+function mostrarError(msg) {
+  const errDiv = document.getElementById('login-error');
+  errDiv.textContent = msg;
+  errDiv.style.display = 'block';
+}
+
+// Cerrar modal al hacer clic fuera
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) overlay.classList.remove('abierto');
+  });
+});
+
+// ══════════════════════════════════════════════
+// USUARIOS
+// ══════════════════════════════════════════════
+async function cargarUsuarios() {
+  const tbody = document.getElementById('tabla-usuarios');
+  if (!tbody) return;
+
+  const { data } = await sb.from('usuarios')
+    .select('*, empresa:empresa_id(nombre, tipo)')
+    .order('created_at', { ascending: false });
+
+  if (!data || !data.length) {
+    tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><div class="icono">👤</div><p>Solo existe tu usuario administrador. Crea accesos para tus empresas clientes y aliadas.</p></div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = data.map(u => `
+    <tr>
+      <td><strong>${u.nombre}</strong></td>
+      <td>${u.email}</td>
+      <td>
+        <span class="badge ${u.rol === 'admin' ? 'badge-verde' : u.rol === 'aliada' ? 'badge-cafe' : 'badge-gris'}">
+          ${u.rol === 'admin' ? 'Administrador' : u.rol === 'aliada' ? 'Aliada' : 'Empresa cliente'}
+        </span>
+      </td>
+      <td>${u.empresa?.nombre || '—'}</td>
+      <td>
+        ${u.rol !== 'admin' ? `<button class="btn btn-outline btn-pequeño" onclick="eliminarUsuario('${u.id}')">Eliminar acceso</button>` : '—'}
+      </td>
+    </tr>
+  `).join('');
+}
+
+function abrirModalUsuario() {
+  // Llenar select de empresas
+  const sel = document.getElementById('usr-empresa-id');
+  sel.innerHTML = '<option value="">Selecciona empresa...</option>' +
+    todasEmpresas.map(e => `<option value="${e.id}">${e.nombre} (${e.tipo})</option>`).join('');
+  document.getElementById('modal-usuario').classList.add('abierto');
+}
+
+async function guardarUsuario() {
+  const nombre = document.getElementById('usr-nombre').value.trim();
+  const email = document.getElementById('usr-email').value.trim();
+  const password = document.getElementById('usr-password').value.trim();
+  const rol = document.getElementById('usr-rol').value;
+  const empresa_id = document.getElementById('usr-empresa-id').value;
+
+  if (!nombre || !email || !password || !empresa_id) {
+    mostrarToast('Completa todos los campos', true); return;
+  }
+
+  // 1. Crear usuario en Supabase Auth via Admin API
+  const { data: authData, error: authError } = await sb.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true
+  });
+
+  if (authError) {
+    // Si no tiene permisos admin, usar signup normal
+    const { data: signupData, error: signupError } = await sb.auth.signUp({ email, password });
+    if (signupError) { mostrarToast('Error al crear usuario: ' + signupError.message, true); return; }
+
+    const uid = signupData.user?.id;
+    if (!uid) { mostrarToast('No se pudo obtener el ID del usuario', true); return; }
+
+    const { error: insertError } = await sb.from('usuarios').insert({ id: uid, nombre, email, rol, empresa_id });
+    if (insertError) { mostrarToast('Error al registrar usuario: ' + insertError.message, true); return; }
+  } else {
+    const uid = authData.user?.id;
+    const { error: insertError } = await sb.from('usuarios').insert({ id: uid, nombre, email, rol, empresa_id });
+    if (insertError) { mostrarToast('Error al registrar usuario: ' + insertError.message, true); return; }
+  }
+
+  mostrarToast(`Acceso creado para ${nombre}`);
+  cerrarModal('modal-usuario');
+  await cargarUsuarios();
+}
+
+async function eliminarUsuario(id) {
+  if (!confirm('¿Eliminar el acceso de este usuario?')) return;
+  await sb.from('usuarios').delete().eq('id', id);
+  mostrarToast('Acceso eliminado');
+  await cargarUsuarios();
+}
+
+// ══════════════════════════════════════════════
+// INIT — verificar sesión activa o token encuesta
+// ══════════════════════════════════════════════
+(async () => {
+  // Verificar si hay token de encuesta en la URL
+  const params = new URLSearchParams(location.search);
+  const token = params.get('encuesta');
+
+  if (token) {
+    mostrarEncuestaPublica(token);
+    return;
+  }
+
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) await cargarUsuario(session.user.id);
+})();
+
+// ══════════════════════════════════════════════
+// ENCUESTA PÚBLICA ANÓNIMA
+// ══════════════════════════════════════════════
+async function mostrarEncuestaPublica(token) {
+  // Verificar que el token es válido
+  const { data: encuesta } = await sb.from('encuestas')
+    .select('*, evaluacion:evaluacion_id(nombre_sesion, empresa:empresa_id(nombre))')
+    .eq('token', token)
+    .single();
+
+  // Ocultar login y mostrar formulario público
+  document.getElementById('pantalla-login').style.display = 'none';
+
+  const pantalla = document.createElement('div');
+  pantalla.style.cssText = 'min-height:100vh; background:var(--gris-claro); padding:32px 16px;';
+
+  if (!encuesta || !encuesta.activa) {
+    pantalla.innerHTML = `
+      <div style="max-width:600px; margin:0 auto; text-align:center; padding:60px 24px;">
+        <div style="font-size:48px; margin-bottom:16px;">🔒</div>
+        <div style="font-size:22px; font-weight:700; color:var(--verde-oscuro); margin-bottom:8px;">Encuesta no disponible</div>
+        <p style="color:var(--texto-suave);">Este link ya no está activo o no existe. Contacta a tu encargado de bienestar.</p>
+      </div>`;
+    document.body.appendChild(pantalla);
+    return;
+  }
+
+  pantalla.innerHTML = `
+    <div style="max-width:640px; margin:0 auto;">
+      <div style="text-align:center; margin-bottom:32px;">
+        <div style="font-size:22px; font-weight:800; color:var(--verde-oscuro);">Nútrete<span style="display:inline-block;width:8px;height:8px;background:var(--verde);border-radius:50%;margin-left:3px;vertical-align:middle;"></span></div>
+        <div style="font-size:14px; color:var(--texto-suave); margin-top:4px;">${encuesta.tipo === 'gerencia' ? 'Diagnóstico Organizacional' : 'Encuesta de Bienestar'} — ${encuesta.evaluacion?.empresa?.nombre || ''}</div>
+      </div>
+
+      ${encuesta.tipo === 'gerencia' ? formGerencia() : formColaborador()}
+
+      <button onclick="enviarEncuesta('${token}', '${encuesta.tipo}')" style="width:100%; padding:16px; background:var(--verde); color:white; border:none; border-radius:10px; font-size:16px; font-weight:700; cursor:pointer; margin-bottom:32px;">
+        Enviar respuestas
+      </button>
+    </div>
+  `;
+
+      <div style="background:white; border-radius:14px; padding:28px; box-shadow:var(--sombra); border:1px solid var(--gris-borde); margin-bottom:20px;">
+        <div style="font-size:13px; color:var(--verde-oscuro); font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">Sección 1 — Alimentación en el trabajo</div>
+
+        <div class="pregunta-bloque">
+          <div class="pregunta-texto">¿Con qué frecuencia desayunas antes de llegar al trabajo?</div>
+          <div class="opciones-radio">
+            ${['Todos los días', 'Casi siempre', 'A veces', 'Casi nunca', 'Nunca'].map(o =>
+              `<label class="opcion-radio"><input type="radio" name="desayuno" value="${o}"> ${o}</label>`
+            ).join('')}
+          </div>
+        </div>
+
+        <div class="pregunta-bloque">
+          <div class="pregunta-texto">¿Dónde almuerzas habitualmente?</div>
+          <div class="opciones-radio">
+            ${['Casino de la empresa', 'Traigo comida de casa', 'Salgo a comer afuera', 'No almuerzo', 'Varía'].map(o =>
+              `<label class="opcion-radio"><input type="radio" name="almuerzo" value="${o}"> ${o}</label>`
+            ).join('')}
+          </div>
+        </div>
+
+        <div class="pregunta-bloque">
+          <div class="pregunta-texto">¿Cómo evalúas la calidad de tu alimentación en el trabajo?</div>
+          <div class="escala-likert">
+            ${[1,2,3,4,5].map(n =>
+              `<button class="escala-btn" onclick="seleccionarEscala(this,'calidad')" data-grupo="calidad" data-val="${n}">${n}</button>`
+            ).join('')}
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--texto-suave);margin-top:4px;"><span>Muy mala</span><span>Excelente</span></div>
+        </div>
+      </div>
+
+      <div style="background:white; border-radius:14px; padding:28px; box-shadow:var(--sombra); border:1px solid var(--gris-borde); margin-bottom:20px;">
+        <div style="font-size:13px; color:var(--verde-oscuro); font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">Sección 2 — Hábitos de vida</div>
+
+        <div class="pregunta-bloque">
+          <div class="pregunta-texto">¿Cuántas horas duermes habitualmente?</div>
+          <div class="opciones-radio">
+            ${['Menos de 5 horas', '5-6 horas', '7-8 horas', 'Más de 8 horas'].map(o =>
+              `<label class="opcion-radio"><input type="radio" name="sueno" value="${o}"> ${o}</label>`
+            ).join('')}
+          </div>
+        </div>
+
+        <div class="pregunta-bloque">
+          <div class="pregunta-texto">¿Con qué frecuencia realizas actividad física?</div>
+          <div class="opciones-radio">
+            ${['Todos los días', '3-4 veces por semana', '1-2 veces por semana', 'Casi nunca', 'Nunca'].map(o =>
+              `<label class="opcion-radio"><input type="radio" name="actividad" value="${o}"> ${o}</label>`
+            ).join('')}
+          </div>
+        </div>
+
+        <div class="pregunta-bloque">
+          <div class="pregunta-texto">¿Cuántos litros de agua bebes al día aproximadamente?</div>
+          <div class="opciones-radio">
+            ${['Menos de 1 litro', '1-1.5 litros', '1.5-2 litros', 'Más de 2 litros'].map(o =>
+              `<label class="opcion-radio"><input type="radio" name="agua" value="${o}"> ${o}</label>`
+            ).join('')}
+          </div>
+        </div>
+      </div>
+
+      <div style="background:white; border-radius:14px; padding:28px; box-shadow:var(--sombra); border:1px solid var(--gris-borde); margin-bottom:20px;">
+        <div style="font-size:13px; color:var(--verde-oscuro); font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">Sección 3 — Bienestar emocional</div>
+
+        <div class="pregunta-bloque">
+          <div class="pregunta-texto">¿Cómo describirías tu nivel de estrés en el trabajo?</div>
+          <div class="escala-likert">
+            ${[1,2,3,4,5].map(n =>
+              `<button class="escala-btn" onclick="seleccionarEscala(this,'estres')" data-grupo="estres" data-val="${n}">${n}</button>`
+            ).join('')}
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--texto-suave);margin-top:4px;"><span>Sin estrés</span><span>Muy estresado/a</span></div>
+        </div>
+
+        <div class="pregunta-bloque">
+          <div class="pregunta-texto">¿Cómo evalúas tu bienestar general en este momento?</div>
+          <div class="escala-likert">
+            ${[1,2,3,4,5].map(n =>
+              `<button class="escala-btn" onclick="seleccionarEscala(this,'bienestar')" data-grupo="bienestar" data-val="${n}">${n}</button>`
+            ).join('')}
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--texto-suave);margin-top:4px;"><span>Muy malo</span><span>Excelente</span></div>
+        </div>
+      </div>
+
+      <div style="background:white; border-radius:14px; padding:28px; box-shadow:var(--sombra); border:1px solid var(--gris-borde); margin-bottom:20px;">
+        <div style="font-size:13px; color:var(--verde-oscuro); font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">Sección 4 — Intereses</div>
+
+        <div class="pregunta-bloque">
+          <div class="pregunta-texto">¿Qué actividades de bienestar te interesarían? (puedes marcar varias)</div>
+          <div class="opciones-radio">
+            ${[
+              ['aromaterapia', 'Taller de aromaterapia y plantas medicinales'],
+              ['fitoterapia', 'Charla de fitoterapia y hierbas medicinales'],
+              ['checkup', 'Evaluación nutricional con bioimpedancia (Check-up Nútrete)'],
+              ['talleres', 'Talleres de alimentación saludable'],
+            ].map(([val, label]) =>
+              `<label class="opcion-radio"><input type="checkbox" name="intereses" value="${val}"> ${label}</label>`
+            ).join('')}
+          </div>
+        </div>
+      </div>
+
+      <div style="background:white; border-radius:14px; padding:28px; box-shadow:var(--sombra); border:1px solid var(--gris-borde); margin-bottom:24px;">
+        <div style="font-size:13px; color:var(--verde-oscuro); font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Sección 5 — Tu salud <span style="font-weight:400;color:var(--texto-suave);">(opcional)</span></div>
+        <div style="font-size:12px; color:var(--texto-suave); margin-bottom:16px;">Esta sección es completamente voluntaria y anónima.</div>
+
+        <div class="pregunta-bloque">
+          <div class="pregunta-texto">¿Cómo describes tu estado de salud general?</div>
+          <div class="opciones-radio">
+            ${['Muy bueno', 'Bueno', 'Regular', 'Malo'].map(o =>
+              `<label class="opcion-radio"><input type="radio" name="salud" value="${o}"> ${o}</label>`
+            ).join('')}
+          </div>
+        </div>
+
+        <div class="pregunta-bloque">
+          <div class="pregunta-texto">¿Tienes alguna condición de salud diagnosticada? (opcional)</div>
+          <div class="opciones-radio">
+            ${['Hipertensión', 'Diabetes o prediabetes', 'Sobrepeso u obesidad', 'Colesterol elevado', 'Ninguna', 'Prefiero no indicar'].map(o =>
+              `<label class="opcion-radio"><input type="checkbox" name="condiciones" value="${o}"> ${o}</label>`
+            ).join('')}
+          </div>
+        </div>
+
+        <div class="pregunta-bloque">
+          <div class="pregunta-texto">¿Te interesaría participar en el Check-up Nútrete (evaluación nutricional con bioimpedancia)?</div>
+          <div class="opciones-radio">
+            ${['Sí, me interesa', 'Tal vez', 'No por ahora'].map(o =>
+              `<label class="opcion-radio"><input type="radio" name="checkup_interes" value="${o}"> ${o}</label>`
+            ).join('')}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(pantalla);
+}
+
+function formColaborador() {
+  return `
+      <div style="background:white; border-radius:14px; padding:28px; box-shadow:var(--sombra); border:1px solid var(--gris-borde); margin-bottom:20px;">
+        <div style="font-size:13px; color:var(--verde-oscuro); font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">Sección 1 — Alimentación en el trabajo</div>
+        <div class="pregunta-bloque">
+          <div class="pregunta-texto">¿Con qué frecuencia desayunas antes de llegar al trabajo?</div>
+          <div class="opciones-radio">${['Todos los días','Casi siempre','A veces','Casi nunca','Nunca'].map(o=>`<label class="opcion-radio"><input type="radio" name="desayuno" value="${o}"> ${o}</label>`).join('')}</div>
+        </div>
+        <div class="pregunta-bloque">
+          <div class="pregunta-texto">¿Dónde almuerzas habitualmente?</div>
+          <div class="opciones-radio">${['Casino de la empresa','Traigo comida de casa','Salgo a comer afuera','No almuerzo','Varía'].map(o=>`<label class="opcion-radio"><input type="radio" name="almuerzo" value="${o}"> ${o}</label>`).join('')}</div>
+        </div>
+        <div class="pregunta-bloque">
+          <div class="pregunta-texto">¿Cómo evalúas la calidad de tu alimentación en el trabajo?</div>
+          <div class="escala-likert">${[1,2,3,4,5].map(n=>`<button class="escala-btn" onclick="seleccionarEscala(this,'calidad')" data-grupo="calidad" data-val="${n}">${n}</button>`).join('')}</div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--texto-suave);margin-top:4px;"><span>Muy mala</span><span>Excelente</span></div>
+        </div>
+      </div>
+      <div style="background:white; border-radius:14px; padding:28px; box-shadow:var(--sombra); border:1px solid var(--gris-borde); margin-bottom:20px;">
+        <div style="font-size:13px; color:var(--verde-oscuro); font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">Sección 2 — Hábitos de vida</div>
+        <div class="pregunta-bloque">
+          <div class="pregunta-texto">¿Cuántas horas duermes habitualmente?</div>
+          <div class="opciones-radio">${['Menos de 5 horas','5-6 horas','7-8 horas','Más de 8 horas'].map(o=>`<label class="opcion-radio"><input type="radio" name="sueno" value="${o}"> ${o}</label>`).join('')}</div>
+        </div>
+        <div class="pregunta-bloque">
+          <div class="pregunta-texto">¿Con qué frecuencia realizas actividad física?</div>
+          <div class="opciones-radio">${['Todos los días','3-4 veces por semana','1-2 veces por semana','Casi nunca','Nunca'].map(o=>`<label class="opcion-radio"><input type="radio" name="actividad" value="${o}"> ${o}</label>`).join('')}</div>
+        </div>
+        <div class="pregunta-bloque">
+          <div class="pregunta-texto">¿Cuántos litros de agua bebes al día aproximadamente?</div>
+          <div class="opciones-radio">${['Menos de 1 litro','1-1.5 litros','1.5-2 litros','Más de 2 litros'].map(o=>`<label class="opcion-radio"><input type="radio" name="agua" value="${o}"> ${o}</label>`).join('')}</div>
+        </div>
+      </div>
+      <div style="background:white; border-radius:14px; padding:28px; box-shadow:var(--sombra); border:1px solid var(--gris-borde); margin-bottom:20px;">
+        <div style="font-size:13px; color:var(--verde-oscuro); font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">Sección 3 — Bienestar emocional</div>
+        <div class="pregunta-bloque">
+          <div class="pregunta-texto">¿Cómo describirías tu nivel de estrés en el trabajo?</div>
+          <div class="escala-likert">${[1,2,3,4,5].map(n=>`<button class="escala-btn" onclick="seleccionarEscala(this,'estres')" data-grupo="estres" data-val="${n}">${n}</button>`).join('')}</div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--texto-suave);margin-top:4px;"><span>Sin estrés</span><span>Muy estresado/a</span></div>
+        </div>
+        <div class="pregunta-bloque">
+          <div class="pregunta-texto">¿Cómo evalúas tu bienestar general en este momento?</div>
+          <div class="escala-likert">${[1,2,3,4,5].map(n=>`<button class="escala-btn" onclick="seleccionarEscala(this,'bienestar')" data-grupo="bienestar" data-val="${n}">${n}</button>`).join('')}</div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--texto-suave);margin-top:4px;"><span>Muy malo</span><span>Excelente</span></div>
+        </div>
+      </div>
+      <div style="background:white; border-radius:14px; padding:28px; box-shadow:var(--sombra); border:1px solid var(--gris-borde); margin-bottom:20px;">
+        <div style="font-size:13px; color:var(--verde-oscuro); font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">Sección 4 — Intereses</div>
+        <div class="pregunta-bloque">
+          <div class="pregunta-texto">¿Qué actividades de bienestar te interesarían?</div>
+          <div class="opciones-radio">${[['aromaterapia','Taller de aromaterapia y plantas medicinales'],['fitoterapia','Charla de fitoterapia y hierbas medicinales'],['checkup','Evaluación nutricional con bioimpedancia (Check-up Nútrete)'],['talleres','Talleres de alimentación saludable']].map(([v,l])=>`<label class="opcion-radio"><input type="checkbox" name="intereses" value="${v}"> ${l}</label>`).join('')}</div>
+        </div>
+      </div>
+      <div style="background:white; border-radius:14px; padding:28px; box-shadow:var(--sombra); border:1px solid var(--gris-borde); margin-bottom:24px;">
+        <div style="font-size:13px; color:var(--verde-oscuro); font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Sección 5 — Tu salud <span style="font-weight:400;color:var(--texto-suave);">(opcional)</span></div>
+        <div class="pregunta-bloque">
+          <div class="pregunta-texto">¿Cómo describes tu estado de salud general?</div>
+          <div class="opciones-radio">${['Muy bueno','Bueno','Regular','Malo'].map(o=>`<label class="opcion-radio"><input type="radio" name="salud" value="${o}"> ${o}</label>`).join('')}</div>
+        </div>
+        <div class="pregunta-bloque">
+          <div class="pregunta-texto">¿Tienes alguna condición de salud diagnosticada? (opcional)</div>
+          <div class="opciones-radio">${['Hipertensión','Diabetes o prediabetes','Sobrepeso u obesidad','Colesterol elevado','Ninguna','Prefiero no indicar'].map(o=>`<label class="opcion-radio"><input type="checkbox" name="condiciones" value="${o}"> ${o}</label>`).join('')}</div>
+        </div>
+        <div class="pregunta-bloque">
+          <div class="pregunta-texto">¿Te interesaría participar en el Check-up Nútrete?</div>
+          <div class="opciones-radio">${['Sí, me interesa','Tal vez','No por ahora'].map(o=>`<label class="opcion-radio"><input type="radio" name="checkup_interes" value="${o}"> ${o}</label>`).join('')}</div>
+        </div>
+      </div>`;
+}
+
+function formGerencia() {
+  return `
+      <div style="background:white; border-radius:14px; padding:28px; box-shadow:var(--sombra); border:1px solid var(--gris-borde); margin-bottom:20px;">
+        <div style="font-size:13px; color:var(--verde-oscuro); font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">Diagnóstico organizacional</div>
+        <div class="pregunta-bloque">
+          <div class="pregunta-texto">¿Cuántos colaboradores tiene la empresa aproximadamente?</div>
+          <div class="opciones-radio">${['Menos de 30','30-100','100-300','Más de 300'].map(o=>`<label class="opcion-radio"><input type="radio" name="num_colaboradores" value="${o}"> ${o}</label>`).join('')}</div>
+        </div>
+        <div class="pregunta-bloque">
+          <div class="pregunta-texto">¿Han realizado programas de bienestar antes?</div>
+          <div class="opciones-radio">${['Sí, con buenos resultados','Sí, pero sin resultados claros','No, nunca','Estamos evaluando hacerlo'].map(o=>`<label class="opcion-radio"><input type="radio" name="programas_prev" value="${o}"> ${o}</label>`).join('')}</div>
+        </div>
+        <div class="pregunta-bloque">
+          <div class="pregunta-texto">¿Cuáles son las principales problemáticas de salud que reportan los colaboradores?</div>
+          <div class="opciones-radio">${['Estrés y agotamiento','Problemas de alimentación','Sedentarismo','Problemas de sueño','Enfermedades crónicas','No tenemos datos claros'].map(o=>`<label class="opcion-radio"><input type="checkbox" name="problematicas" value="${o}"> ${o}</label>`).join('')}</div>
+        </div>
+        <div class="pregunta-bloque">
+          <div class="pregunta-texto">¿Tienen datos de ausentismo o licencias médicas frecuentes?</div>
+          <div class="opciones-radio">${['Sí, es un problema relevante','Algunos casos aislados','No tenemos datos','Tenemos datos pero son bajos'].map(o=>`<label class="opcion-radio"><input type="radio" name="ausentismo" value="${o}"> ${o}</label>`).join('')}</div>
+        </div>
+        <div class="pregunta-bloque">
+          <div class="pregunta-texto">¿Cuál es el presupuesto aproximado disponible para bienestar este año?</div>
+          <div class="opciones-radio">${['Menos de $500.000 CLP','$500.000 - $2.000.000 CLP','$2.000.000 - $5.000.000 CLP','Más de $5.000.000 CLP','Aún no está definido'].map(o=>`<label class="opcion-radio"><input type="radio" name="presupuesto" value="${o}"> ${o}</label>`).join('')}</div>
+        </div>
+        <div class="pregunta-bloque">
+          <div class="pregunta-texto">¿Qué resultados esperan de un programa de bienestar?</div>
+          <div class="opciones-radio">${['Reducir ausentismo','Mejorar el clima laboral','Cumplir exigencias legales','Mejorar la productividad','Fidelizar a los colaboradores','Todos los anteriores'].map(o=>`<label class="opcion-radio"><input type="checkbox" name="resultados_esperados" value="${o}"> ${o}</label>`).join('')}</div>
+        </div>
+      </div>`;
+}
+
+function seleccionarEscala(btn, grupo) {
+  document.querySelectorAll(`[data-grupo="${grupo}"]`).forEach(b => b.classList.remove('seleccionado'));
+  btn.classList.add('seleccionado');
+}
+
+async function enviarEncuesta(token, tipo) {
+  const { data: encuesta } = await sb.from('encuestas').select('id').eq('token', token).single();
+  if (!encuesta) return;
+
+  const getRadio = (name) => document.querySelector(`input[name="${name}"]:checked`)?.value || null;
+  const getEscala = (grupo) => {
+    const btn = document.querySelector(`[data-grupo="${grupo}"].seleccionado`);
+    return btn ? parseInt(btn.dataset.val) : null;
+  };
+  const getCheckboxes = (name) => [...document.querySelectorAll(`input[name="${name}"]:checked`)].map(i => i.value);
+
+  let respuesta = { encuesta_id: encuesta.id };
+
+  if (tipo === 'gerencia') {
+    // Guardamos los datos de gerencia en el campo observaciones como JSON
+    respuesta.autopercepcion_salud = JSON.stringify({
+      num_colaboradores: getRadio('num_colaboradores'),
+      programas_prev: getRadio('programas_prev'),
+      problematicas: getCheckboxes('problematicas'),
+      ausentismo: getRadio('ausentismo'),
+      presupuesto: getRadio('presupuesto'),
+      resultados_esperados: getCheckboxes('resultados_esperados'),
+    });
+  } else {
+    const intereses = getCheckboxes('intereses');
+    const condiciones = getCheckboxes('condiciones');
+    respuesta = {
+      ...respuesta,
+      frecuencia_desayuno: getRadio('desayuno'),
+      lugar_almuerzo: getRadio('almuerzo'),
+      calidad_alimentacion_percibida: getEscala('calidad'),
+      horas_sueno: getRadio('sueno') === 'Menos de 5 horas' ? 4.5 : getRadio('sueno') === '5-6 horas' ? 5.5 : getRadio('sueno') === '7-8 horas' ? 7.5 : 8.5,
+      actividad_fisica_frecuencia: getRadio('actividad'),
+      consumo_agua_litros: getRadio('agua') === 'Menos de 1 litro' ? 0.5 : getRadio('agua') === '1-1.5 litros' ? 1.25 : getRadio('agua') === '1.5-2 litros' ? 1.75 : 2.5,
+      nivel_estres: getEscala('estres'),
+      bienestar_general: getEscala('bienestar'),
+      interes_aromaterapia: intereses.includes('aromaterapia'),
+      interes_fitoterapia: intereses.includes('fitoterapia'),
+      interes_checkup: intereses.includes('checkup'),
+      interes_talleres: intereses.includes('talleres'),
+      autopercepcion_salud: getRadio('salud'),
+      condiciones_diagnosticadas: condiciones,
+      disposicion_checkup: getRadio('checkup_interes') === 'Sí, me interesa',
+    };
+  }
+
+  const { error } = await sb.from('respuestas_encuesta').insert(respuesta);
+  const contenedor = document.querySelector('body > div:last-of-type');
+
+  if (error) {
+    contenedor.innerHTML = `<div style="max-width:600px;margin:60px auto;text-align:center;"><div style="font-size:48px;">❌</div><p style="color:var(--rojo);margin-top:16px;">Hubo un error al enviar. Intenta de nuevo.</p></div>`;
+    return;
+  }
+
+  contenedor.innerHTML = `
+    <div style="max-width:600px; margin:60px auto; text-align:center; padding:40px 24px;">
+      <div style="font-size:64px; margin-bottom:20px;">🌿</div>
+      <div style="font-size:24px; font-weight:800; color:var(--verde-oscuro); margin-bottom:12px;">¡Gracias por responder!</div>
+      <p style="color:var(--texto-suave); font-size:15px; line-height:1.7;">Tus respuestas han sido registradas.<br>El equipo de Nútrete las usará para diseñar un programa de bienestar a la medida de tu equipo.</p>
+      <div style="margin-top:32px; padding:20px; background:white; border-radius:12px; border:1px solid var(--gris-borde);">
+        <div style="font-size:14px; font-weight:600; color:var(--verde-oscuro);">Nútrete®</div>
+        <div style="font-size:13px; color:var(--texto-suave);">El Método Nútrete® desarrolla el Criterio para la Salud.</div>
+      </div>
+    </div>`;
+}
+    const btn = document.querySelector(`[data-grupo="${grupo}"].seleccionado`);
+    return btn ? parseInt(btn.dataset.val) : null;
+  };
+  const getCheckboxes = (name) => [...document.querySelectorAll(`input[name="${name}"]:checked`)].map(i => i.value);
+
+  const intereses = getCheckboxes('intereses');
+  const condiciones = getCheckboxes('condiciones');
+
+  const respuesta = {
+    encuesta_id: encuesta.id,
+    frecuencia_desayuno: getRadio('desayuno'),
+    lugar_almuerzo: getRadio('almuerzo'),
+    calidad_alimentacion_percibida: getEscala('calidad'),
+    horas_sueno: getRadio('sueno') === 'Menos de 5 horas' ? 4.5 :
+                 getRadio('sueno') === '5-6 horas' ? 5.5 :
+                 getRadio('sueno') === '7-8 horas' ? 7.5 : 8.5,
+    actividad_fisica_frecuencia: getRadio('actividad'),
+    consumo_agua_litros: getRadio('agua') === 'Menos de 1 litro' ? 0.5 :
+                         getRadio('agua') === '1-1.5 litros' ? 1.25 :
+                         getRadio('agua') === '1.5-2 litros' ? 1.75 : 2.5,
+    nivel_estres: getEscala('estres'),
+    bienestar_general: getEscala('bienestar'),
+    interes_aromaterapia: intereses.includes('aromaterapia'),
+    interes_fitoterapia: intereses.includes('fitoterapia'),
+    interes_checkup: intereses.includes('checkup'),
+    interes_talleres: intereses.includes('talleres'),
+    autopercepcion_salud: getRadio('salud'),
+    condiciones_diagnosticadas: condiciones,
+    disposicion_checkup: getRadio('checkup_interes') === 'Sí, me interesa',
+  };
+
+  const { error } = await sb.from('respuestas_encuesta').insert(respuesta);
+
+  const contenedor = document.querySelector('body > div:last-of-type');
+  if (error) {
+    contenedor.innerHTML = `<div style="max-width:600px;margin:60px auto;text-align:center;"><div style="font-size:48px;">❌</div><p style="color:var(--rojo);margin-top:16px;">Hubo un error al enviar. Intenta de nuevo.</p></div>`;
+    return;
+  }
+
+  contenedor.innerHTML = `
+    <div style="max-width:600px; margin:60px auto; text-align:center; padding:40px 24px;">
+      <div style="font-size:64px; margin-bottom:20px;">🌿</div>
+      <div style="font-size:24px; font-weight:800; color:var(--verde-oscuro); margin-bottom:12px;">¡Gracias por responder!</div>
+      <p style="color:var(--texto-suave); font-size:15px; line-height:1.7;">Tus respuestas han sido registradas de forma anónima.<br>El equipo de Nútrete las usará para diseñar un programa de bienestar a la medida de tu equipo.</p>
+      <div style="margin-top:32px; padding:20px; background:white; border-radius:12px; border:1px solid var(--gris-borde);">
+        <div style="font-size:14px; font-weight:600; color:var(--verde-oscuro);">Nútrete®</div>
+        <div style="font-size:13px; color:var(--texto-suave);">El Método Nútrete® desarrolla el Criterio para la Salud.</div>
+      </div>
+    </div>`;
+}
+</script>
+</body>
+</html>

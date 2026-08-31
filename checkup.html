@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Check-up Nútrete® · Ficha Individual</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --gd:#07542F;--gm:#009444;--gl:#E8F5EE;--gp:#F0F7F3;
+    --gray:#F7F7F7;--gb:#DEDEDE;--white:#FFFFFF;
+    --red:#C0392B;--red-l:#FDECEA;
+    --yel:#C47A00;--yel-l:#FEF9E7;
+    --grn:#1A7A40;--grn-l:#E8F5EE;
+  }
+  body{font-family:'Segoe UI',system-ui,sans-serif;background:#EEF2EC;color:#1A1A1A;font-size:15px;line-height:1.6}
+  .topbar{background:var(--gd);color:#a8d5b8;font-size:12px;padding:8px 24px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100}
+  .topbar strong{color:white}
+  .cover{background:var(--gd);color:white;padding:44px 28px 36px;text-align:center}
+  .cover h1{font-size:32px;font-weight:800;color:white;margin-bottom:6px}
+  .cover h2{font-size:18px;color:#7fc89a;font-weight:400;margin-bottom:16px}
+  .cover-tagline{display:inline-block;background:rgba(255,255,255,.12);border-radius:4px;padding:7px 18px;font-size:13px;color:#c8ebd5;font-style:italic}
+  .wrap{max-width:820px;margin:0 auto;padding:0 12px 80px}
+  .card{background:white;margin-top:10px}
+  .card-header{background:var(--gd);color:white;padding:13px 20px;font-size:14px;font-weight:700;letter-spacing:.5px;text-transform:uppercase}
+  .card-header.green{background:var(--gm)}
+  .card-body{padding:20px}
+  .note{background:var(--gp);border-left:4px solid var(--gm);padding:10px 14px;font-size:13px;color:#555;font-style:italic;margin-bottom:0}
+  .data-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .data-grid .full{grid-column:1/-1}
+  .field-group{display:flex;flex-direction:column;gap:4px}
+  .field-group label{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--gd);font-weight:700}
+  .field-group input,.field-group select,.field-group textarea{border:1px solid var(--gb);border-radius:4px;padding:8px 10px;font-size:14px;font-family:inherit;background:var(--gray);color:#1A1A1A;transition:border-color .2s}
+  .field-group input:focus,.field-group select:focus,.field-group textarea:focus{outline:none;border-color:var(--gm);background:white}
+  .field-group input[readonly]{background:var(--gl);color:var(--gd);font-weight:600}
+  .leyenda{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px}
+  .ley-item{border-radius:6px;padding:10px 12px;text-align:center}
+  .ley-item .dot{font-size:18px;font-weight:800;margin-bottom:4px}
+  .ley-item p{font-size:12px;color:#555;line-height:1.4}
+  .ley-normal{background:var(--grn-l)}.ley-normal .dot{color:var(--grn)}
+  .ley-pre{background:var(--yel-l)}.ley-pre .dot{color:var(--yel)}
+  .ley-aten{background:var(--red-l)}.ley-aten .dot{color:var(--red)}
+  .var-table{width:100%;border-collapse:collapse;margin-bottom:4px}
+  .var-table th{background:var(--gm);color:white;padding:9px 10px;font-size:13px;font-weight:700;text-align:left}
+  .var-table th:not(:first-child){text-align:center}
+  .var-table td{padding:10px 10px;font-size:14px;border-bottom:1px solid #F0F0F0;vertical-align:middle}
+  .var-table tr:nth-child(even) td{background:var(--gray)}
+  .var-table td.var-name{font-weight:600;color:#222;font-size:13px}
+  .var-table td.ref{font-size:12px;color:#666;text-align:center}
+  .var-table td.resultado{text-align:center}
+  .var-table td.resultado input{width:90px;border:1px solid var(--gb);border-radius:4px;padding:5px 6px;font-size:14px;font-weight:700;text-align:center;background:white;font-family:inherit}
+  .var-table td.resultado input:focus{outline:none;border-color:var(--gm)}
+  .var-table td.estado{text-align:center;min-width:130px}
+  .semaforo-sel{display:flex;gap:5px;justify-content:center;flex-wrap:wrap}
+  .sem-btn{border:2px solid;border-radius:5px;padding:4px 9px;font-size:11px;font-weight:800;cursor:pointer;transition:all .15s;font-family:inherit;white-space:nowrap;opacity:.3}
+  .sem-btn:hover{opacity:.65}
+  .sem-btn.active{opacity:1;transform:scale(1.06);box-shadow:0 2px 6px rgba(0,0,0,.2)}
+  .sem-n{background:white;border-color:#1A7A40;color:#1A7A40}
+  .sem-p{background:white;border-color:#C47A00;color:#C47A00}
+  .sem-a{background:white;border-color:#C0392B;color:#C0392B}
+  .sem-n.active{background:#1A7A40;color:white}
+  .sem-p.active{background:#C47A00;color:white}
+  .sem-a.active{background:#C0392B;color:white}
+  .sub-header{background:var(--gl);padding:9px 16px;font-size:13px;font-weight:700;color:var(--gd);border-left:4px solid var(--gm);margin:16px 0 10px}
+  .glicemia-note{background:#FFF8E7;border-left:4px solid #D4820A;padding:10px 14px;font-size:13px;color:#555;font-style:italic;margin-top:12px}
+  .recom-table{width:100%;border-collapse:collapse}
+  .recom-table tr{border-bottom:1px solid #F0F0F0}
+  .recom-table tr:last-child{border-bottom:none}
+  .recom-table td{padding:10px}
+  .recom-icon{width:48px;text-align:center;font-size:22px;background:var(--gl);vertical-align:top}
+  .recom-title{font-size:13px;font-weight:700;color:var(--gd);margin-bottom:4px}
+  .recom-table textarea{width:100%;border:1px solid var(--gb);border-radius:4px;padding:6px 8px;font-size:13px;font-family:inherit;background:var(--gray);resize:vertical;min-height:48px}
+  .recom-table textarea:focus{outline:none;border-color:var(--gm);background:white}
+  .obs-area{width:100%;border:1px solid var(--gb);border-radius:4px;padding:10px;font-size:14px;font-family:inherit;min-height:100px;resize:vertical;background:var(--gray)}
+  .obs-area:focus{outline:none;border-color:var(--gm);background:white}
+  .micro-box{background:var(--gl);border-radius:6px;padding:20px;border:2px solid var(--gm)}
+  .micro-box label{font-size:14px;font-weight:700;color:var(--gd);display:block;margin-bottom:8px}
+  .micro-box p{font-size:13px;color:#555;font-style:italic;margin-bottom:12px}
+  .micro-box textarea{width:100%;border:1px solid var(--gm);border-radius:4px;padding:10px;font-size:15px;font-family:inherit;min-height:64px;resize:vertical;background:white}
+  .micro-box textarea:focus{outline:none}
+  .pasos{display:flex;flex-direction:column;gap:8px}
+  .paso{display:flex;gap:12px;align-items:flex-start;background:var(--gray);border-radius:6px;padding:12px}
+  .paso-num{background:var(--gm);color:white;font-size:13px;font-weight:800;border-radius:50%;width:30px;height:30px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .paso-title{font-size:14px;font-weight:700;color:var(--gd);margin-bottom:2px}
+  .paso-text{font-size:13px;color:#666}
+  .actions{background:white;margin-top:10px;padding:18px 20px;display:flex;gap:10px;flex-wrap:wrap}
+  .btn{padding:10px 20px;border-radius:6px;font-size:14px;font-weight:700;cursor:pointer;border:none;font-family:inherit;transition:all .15s}
+  .btn-primary{background:var(--gd);color:white}.btn-primary:hover{background:#09623a}
+  .btn-secondary{background:var(--gl);color:var(--gd);border:1px solid var(--gm)}.btn-secondary:hover{background:#d4eedd}
+  .btn-success{background:var(--gm);color:white}.btn-success:hover{background:var(--gd)}
+  .btn-outline{background:white;color:#666;border:1px solid var(--gb)}.btn-outline:hover{border-color:var(--gm);color:var(--gd)}
+  .footer-doc{background:var(--gd);color:#a8d5b8;text-align:center;padding:20px;margin-top:10px;font-size:12px}
+  .footer-doc strong{color:white}
+  .toast{position:fixed;bottom:24px;right:24px;background:var(--gd);color:white;padding:12px 20px;border-radius:10px;font-size:14px;font-weight:500;box-shadow:0 4px 20px rgba(0,0,0,.2);z-index:999;transform:translateY(80px);opacity:0;transition:all .3s}
+  .toast.visible{transform:translateY(0);opacity:1}
+  .toast.error{background:var(--red)}
+  @media(max-width:560px){
+    .data-grid{grid-template-columns:1fr}
+    .leyenda{grid-template-columns:1fr}
+    .cover h1{font-size:24px}
+    .var-table td.ref{display:none}
+  }
+  @media print{
+    .topbar,.actions,.toast{display:none!important}
+    body{background:white}
+    .wrap{padding:0 0 20px}
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span>Check-up Nútrete® · <strong>Ficha Individual</strong></span>
+  <span style="font-size:11px;color:#7fc89a" id="topbar-info">Cargando...</span>
+</div>
+
+<div class="cover">
+  <h1>Check-up Nútrete®</h1>
+  <h2>Evaluación Nutricional Individual</h2>
+  <div class="cover-tagline">El Método Nútrete® desarrolla el Criterio para la Salud</div>
+</div>
+
+<div class="wrap">
+
+  <div class="card">
+    <div class="note" style="border-left-width:5px">
+      Este documento es <strong>personal y confidencial</strong>. Nadie en tu empresa tiene acceso a tus datos individuales. Fue elaborado por una nutricionista certificada en base a tu evaluación de hoy.
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">Datos de la evaluación</div>
+    <div class="card-body">
+      <div class="data-grid">
+        <div class="field-group full">
+          <label>Empresa / Sede</label>
+          <input type="text" id="empresa" placeholder="Nombre de la empresa u organización" readonly>
+        </div>
+        <div class="field-group">
+          <label>Fecha de evaluación</label>
+          <input type="date" id="fecha">
+        </div>
+        <div class="field-group">
+          <label>Evaluado/a por</label>
+          <input type="text" value="Natacha González Sepúlveda · Nutricionista · Nútrete EIRL" readonly>
+        </div>
+        <div class="field-group">
+          <label>Código colaborador/a</label>
+          <input type="text" id="codigo" placeholder="Ej: C001">
+        </div>
+        <div class="field-group">
+          <label>Área / Departamento</label>
+          <input type="text" id="area" placeholder="Ej: Operaciones">
+        </div>
+        <div class="field-group">
+          <label>Sexo biológico (referencia clínica)</label>
+          <select id="sexo" onchange="autoIMC()">
+            <option value="">Seleccionar...</option>
+            <option value="F">Femenino</option>
+            <option value="M">Masculino</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label>Edad (años)</label>
+          <input type="number" id="edad" placeholder="Ej: 35" min="18" max="99" oninput="autoIMC()">
+        </div>
+        <div class="field-group full">
+          <label>Nivel de actividad física habitual</label>
+          <select id="actividad">
+            <option value="">Seleccionar...</option>
+            <option>Sedentario/a (sin ejercicio)</option>
+            <option>Levemente activo/a (1-2 días/semana)</option>
+            <option>Moderadamente activo/a (3-4 días/semana)</option>
+            <option>Muy activo/a (5 o más días/semana)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">Resultados de tu evaluación</div>
+    <div class="card-body">
+      <div class="sub-header">Leyenda del semáforo</div>
+      <div class="leyenda">
+        <div class="ley-item ley-normal"><div class="dot">● NORMAL</div><p>Dentro del rango saludable esperado para tu edad y sexo.</p></div>
+        <div class="ley-item ley-pre"><div class="dot">● PRECAUCIÓN</div><p>Valor en límite. Requiere atención y cambio de hábitos a tiempo.</p></div>
+        <div class="ley-item ley-aten"><div class="dot">● ATENCIÓN</div><p>Fuera del rango. Se recomienda control médico.</p></div>
+      </div>
+      <div class="sub-header">Composición Corporal · Bioimpedancia</div>
+      <div style="overflow-x:auto">
+        <table class="var-table"><thead><tr>
+          <th style="width:35%">Variable</th><th style="width:16%">Resultado</th><th style="width:27%">Referencia</th><th style="width:22%">Estado</th>
+        </tr></thead><tbody id="tbody-composicion"></tbody></table>
+      </div>
+      <div class="sub-header" style="margin-top:20px">Presión Arterial</div>
+      <div style="overflow-x:auto">
+        <table class="var-table"><thead><tr>
+          <th style="width:35%">Variable</th><th style="width:16%">Resultado</th><th style="width:27%">Referencia</th><th style="width:22%">Estado</th>
+        </tr></thead><tbody id="tbody-pa"></tbody></table>
+      </div>
+      <div class="sub-header" style="margin-top:20px">Glicemia Capilar</div>
+      <div style="overflow-x:auto">
+        <table class="var-table"><thead><tr>
+          <th style="width:35%">Variable</th><th style="width:16%">Resultado</th><th style="width:27%">Referencia</th><th style="width:22%">Estado</th>
+        </tr></thead><tbody id="tbody-glic"></tbody></table>
+      </div>
+      <div class="glicemia-note">⚠ La glicemia capilar es una medición orientativa, no reemplaza el diagnóstico médico. Si el valor es ≥ 100 mg/dL en ayunas, se recomienda solicitar hemoglobina glicosilada (HbA1c) con el médico.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">Interpretación y recomendaciones de Nútrete</div>
+    <div class="card-body">
+      <div class="sub-header">Resumen del perfil de salud detectado</div>
+      <textarea class="obs-area" id="observaciones" placeholder="Observaciones de la nutricionista: descripción del perfil general, principales hallazgos, contexto clínico relevante..."></textarea>
+      <div class="sub-header" style="margin-top:20px">Recomendaciones personalizadas</div>
+      <table class="recom-table" id="recom-table"></table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header green">Tu microacción de la semana</div>
+    <div class="card-body">
+      <p style="font-size:14px;color:var(--gd);font-style:italic;margin-bottom:12px">El Método Nútrete® cierra cada evaluación con una decisión tuya, no mía. Elige una sola acción pequeña y posible que quieras hacer esta semana para cuidarte. <strong>Tú eliges qué es cuidarte para ti.</strong></p>
+      <div class="micro-box">
+        <label>Mi microacción de esta semana</label>
+        <p>Una acción pequeña, concreta y posible que decido hacer esta semana para cuidarme:</p>
+        <textarea id="microaccion" placeholder="Escribe aquí la microacción del colaborador/a..."></textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">¿Qué sigue?</div>
+    <div class="card-body">
+      <div class="note" style="margin-bottom:16px">Este Check-up es el punto de partida, no el destino. Los datos de hoy son una foto. Lo que hagas con ellos a partir de ahora es lo que cambia algo.</div>
+      <div class="pasos">
+        <div class="paso"><div class="paso-num">01</div><div><div class="paso-title">Guarda esta ficha.</div><div class="paso-text">Es tuya y solo tuya. Nadie de tu empresa tiene acceso a estos datos individuales.</div></div></div>
+        <div class="paso"><div class="paso-num">02</div><div><div class="paso-title">Si hay una variable en ATENCIÓN, consúltala con tu médico.</div><div class="paso-text">Este resultado orienta — no diagnostica. Tu médico tiene el contexto completo.</div></div></div>
+        <div class="paso"><div class="paso-num">03</div><div><div class="paso-title">Haz tu microacción esta semana.</div><div class="paso-text">Una acción pequeña sostenida en el tiempo vale más que un cambio drástico que dura tres días.</div></div></div>
+        <div class="paso"><div class="paso-num">04</div><div><div class="paso-title">Si tu empresa ofrece el programa Cultivo de Hábitos Nútrete, aprovéchalo.</div><div class="paso-text">3 meses de acompañamiento continuo para que los cambios se vuelvan hábitos reales.</div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="btn btn-success" onclick="guardarEnSupabase()">💾 Guardar en plataforma</button>
+    <button class="btn btn-primary" onclick="window.print()">🖨 Imprimir ficha</button>
+    <button class="btn btn-outline" onclick="window.close()">← Volver</button>
+  </div>
+
+</div>
+
+<div class="footer-doc">
+  <strong>Nútrete EIRL</strong> · Natacha González Sepúlveda, Nutricionista · www.nutrete.cl<br>
+  <span style="font-size:11px">El Método Nútrete® desarrolla el Criterio para la Salud · Ñuñoa, Santiago de Chile</span>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://jpybenygergddnksbwzg.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpweWJlbnlnZXJnZGRua3Nid3pnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxMjMzOTUsImV4cCI6MjEwMzY5OTM5NX0.-KTVBiXLwvQzmRg7BqG5GmH8O2YEk08c3IuRM-VwTeE';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// Parámetros URL
+const params = new URLSearchParams(location.search);
+const evalId = params.get('eval');
+const colId  = params.get('col');
+const resId  = params.get('res');
+
+// Variables clínicas
+const composicion = [
+  {id:'peso',     label:'Peso corporal (kg)',            ref:'Referencia según IMC',                              unit:'kg',   tipo:'num'},
+  {id:'talla',    label:'Talla (cm)',                    ref:'Dato de referencia',                                unit:'cm',   tipo:'num'},
+  {id:'imc',      label:'IMC — Índice de Masa Corporal', ref:'Adultos: 18.5–24.9 kg/m²',                        unit:'kg/m²',tipo:'auto'},
+  {id:'grasa_p',  label:'Masa grasa (%)',                ref:'Mujeres: 20–35% / Hombres: 10–22%',               unit:'%',    tipo:'num'},
+  {id:'grasa_k',  label:'Masa grasa (kg)',               ref:'Proporcional al peso total',                       unit:'kg',   tipo:'num'},
+  {id:'muscular', label:'Masa muscular (kg)',            ref:'Varía por edad y sexo',                            unit:'kg',   tipo:'num'},
+  {id:'osea',     label:'Masa ósea (kg)',                ref:'Aprox. 2.5–4.0 kg en adultos',                    unit:'kg',   tipo:'num'},
+  {id:'agua',     label:'Agua corporal total (%)',       ref:'Adultos: 50–65%',                                  unit:'%',    tipo:'num'},
+  {id:'visceral', label:'Grasa visceral (nivel)',        ref:'Saludable: 1–9 / Alto: 10–14 / Muy alto: ≥15',   unit:'',     tipo:'num'},
+  {id:'metabolica',label:'Edad metabólica (años)',       ref:'Ideal: igual o menor a la edad real',              unit:'años', tipo:'num'},
+  {id:'cintura',  label:'Circunferencia de cintura (cm)',ref:'Mujeres: <80 cm / Hombres: <94 cm',               unit:'cm',   tipo:'num'},
+  {id:'cadera',   label:'Circunferencia de cadera (cm)', ref:'Referencia para cálculo ICC',                     unit:'cm',   tipo:'num'},
+  {id:'icc',      label:'Índice Cintura/Cadera (ICC)',   ref:'Mujeres: <0.85 / Hombres: <0.90 (riesgo CV)',     unit:'',     tipo:'auto'},
+];
+const presion = [
+  {id:'pas',    label:'Presión sistólica (mmHg)',  ref:'< 120 mmHg (óptima)',                              unit:'mmHg',tipo:'num'},
+  {id:'pad',    label:'Presión diastólica (mmHg)', ref:'< 80 mmHg (óptima)',                              unit:'mmHg',tipo:'num'},
+  {id:'pa_cls', label:'Clasificación',             ref:'Normal / Elevada / HTA estadio 1 / HTA estadio 2',unit:'',    tipo:'txt'},
+];
+const glicemia = [
+  {id:'glic',   label:'Glicemia (mg/dL)',           ref:'En ayunas: 70–99 mg/dL (normal)',               unit:'mg/dL',tipo:'num'},
+  {id:'glic_m', label:'Condición de la medición',   ref:'Ayunas / Post-prandial 2h / Sin dato',          unit:'',tipo:'txt'},
+  {id:'glic_c', label:'Clasificación orientativa',  ref:'Normal / Alterada en ayunas / Sospecha de DM2', unit:'',tipo:'txt'},
+];
+const recomendaciones = [
+  {icon:'🥗',titulo:'Alimentación'},
+  {icon:'💧',titulo:'Hidratación'},
+  {icon:'🏃',titulo:'Actividad física'},
+  {icon:'😴',titulo:'Descanso y recuperación'},
+  {icon:'🌿',titulo:'Autocuidado / Fitoterapia'},
+  {icon:'🩺',titulo:'Derivación médica'},
+];
+
+// Construir tabla de variables
+function buildVarTable(tbodyId, vars) {
+  const tbody = document.getElementById(tbodyId);
+  vars.forEach(v => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="var-name">${v.label}</td>
+      <td class="resultado">
+        ${v.tipo==='auto'
+          ? `<span id="val-${v.id}" style="font-size:15px;font-weight:700;color:var(--gd)">—</span>`
+          : `<input type="${v.tipo==='txt'?'text':'number'}" id="val-${v.id}" placeholder="${v.tipo==='txt'?'Escribe...':'0.0'}" step="0.1" style="width:${v.tipo==='txt'?'130px':'86px'};font-size:15px;font-weight:700;color:#1A1A1A;text-align:center" oninput="autoIMC()">`
+        }
+        <span style="font-size:11px;color:#999;display:block;margin-top:2px">${v.unit}</span>
+      </td>
+      <td class="ref">${v.ref}</td>
+      <td class="estado">
+        <div class="semaforo-sel" id="sem-${v.id}">
+          <button class="sem-btn sem-n" onclick="selectSem('sem-${v.id}','N',this)">✓ Normal</button>
+          <button class="sem-btn sem-p" onclick="selectSem('sem-${v.id}','P',this)">! Precaución</button>
+          <button class="sem-btn sem-a" onclick="selectSem('sem-${v.id}','A',this)">⚠ Atención</button>
+        </div>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+buildVarTable('tbody-composicion', composicion);
+buildVarTable('tbody-pa', presion);
+buildVarTable('tbody-glic', glicemia);
+
+// Construir tabla de recomendaciones
+const recomTbl = document.getElementById('recom-table');
+recomendaciones.forEach(r => {
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td class="recom-icon">${r.icon}</td>
+    <td>
+      <div class="recom-title">${r.titulo}</div>
+      <textarea id="recom-${r.titulo.toLowerCase().replace(/\//g,'-').replace(/ /g,'-')}" placeholder="Recomendación de ${r.titulo.toLowerCase()}..." rows="2"></textarea>
+    </td>`;
+  recomTbl.appendChild(tr);
+});
+
+// Rangos clínicos
+const ranges = {
+  imc:      (v,s) => { if(v<18.5) return 'P'; if(v<25) return 'N'; if(v<30) return 'P'; return 'A'; },
+  grasa_p:  (v,s) => { if(s==='M'){if(v<6)return 'P';if(v<=22)return 'N';if(v<=27)return 'P';return 'A';}else{if(v<16)return 'P';if(v<=35)return 'N';if(v<=40)return 'P';return 'A';} },
+  muscular: (v,s) => { if(s==='M'){if(v>=32)return 'N';if(v>=25)return 'P';return 'A';}else{if(v>=20)return 'N';if(v>=15)return 'P';return 'A';} },
+  osea:     (v,s) => { if(v>=2.5)return 'N';if(v>=2.0)return 'P';return 'A'; },
+  agua:     (v,s) => { if(v>=50&&v<=65)return 'N';if(v>=45)return 'P';return 'A'; },
+  visceral: (v,s) => { if(v<=9)return 'N';if(v<=14)return 'P';return 'A'; },
+  cintura:  (v,s) => { const l=s==='M'?94:80,lh=s==='M'?102:88;if(v<l)return 'N';if(v<lh)return 'P';return 'A'; },
+  icc:      (v,s) => { const l=s==='M'?0.90:0.85;if(v<l)return 'N';if(v<l+0.05)return 'P';return 'A'; },
+  pas:      (v,s) => { if(v<120)return 'N';if(v<130)return 'P';return 'A'; },
+  pad:      (v,s) => { if(v<80)return 'N';if(v<90)return 'P';return 'A'; },
+  glic:     (v,s) => { if(v>=70&&v<=99)return 'N';if(v>=100&&v<=125)return 'P';return 'A'; },
+};
+
+function applySem(varId, state) {
+  if(!state) return;
+  const sem = document.getElementById('sem-'+varId);
+  if(!sem) return;
+  sem.querySelectorAll('.sem-btn').forEach(b => b.classList.remove('active'));
+  const map = {N:0,P:1,A:2};
+  if(map[state]!==undefined) sem.querySelectorAll('.sem-btn')[map[state]]?.classList.add('active');
+}
+
+function selectSem(groupId, val, btn) {
+  document.querySelectorAll('#'+groupId+' .sem-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function getSemState(varId) {
+  const sem = document.getElementById('sem-'+varId);
+  if(!sem) return null;
+  const active = sem.querySelector('.sem-btn.active');
+  if(!active) return null;
+  if(active.classList.contains('sem-n')) return 'N';
+  if(active.classList.contains('sem-p')) return 'P';
+  if(active.classList.contains('sem-a')) return 'A';
+  return null;
+}
+
+function semToStr(s) {
+  if(s==='N') return 'verde';
+  if(s==='P') return 'amarillo';
+  if(s==='A') return 'rojo';
+  return null;
+}
+
+function autoIMC() {
+  const sexo = document.getElementById('sexo')?.value || 'F';
+  const edad = parseFloat(document.getElementById('edad')?.value) || 0;
+  const peso  = parseFloat(document.getElementById('val-peso')?.value) || 0;
+  const talla = parseFloat(document.getElementById('val-talla')?.value) || 0;
+  const elImc = document.getElementById('val-imc');
+  if(elImc) {
+    if(peso>0&&talla>0){
+      const imc = +(peso/Math.pow(talla/100,2)).toFixed(1);
+      elImc.textContent = imc+' kg/m²';
+      applySem('imc',ranges.imc(imc,sexo));
+    } else { elImc.textContent='—'; }
+  }
+  const cintura = parseFloat(document.getElementById('val-cintura')?.value)||0;
+  const cadera  = parseFloat(document.getElementById('val-cadera')?.value)||0;
+  const elIcc   = document.getElementById('val-icc');
+  if(elIcc){
+    if(cintura>0&&cadera>0){
+      const icc=+(cintura/cadera).toFixed(2);
+      elIcc.textContent=icc;
+      applySem('icc',ranges.icc(icc,sexo));
+    } else { elIcc.textContent='—'; }
+  }
+  if(edad>0){
+    const metab=parseFloat(document.getElementById('val-metabolica')?.value)||0;
+    if(metab>0){const diff=metab-edad;applySem('metabolica',diff<=0?'N':diff<=5?'P':'A');}
+  }
+  ['grasa_p','grasa_k','muscular','osea','agua','visceral','cintura','pas','pad','glic'].forEach(id=>{
+    const fn=ranges[id];if(!fn)return;
+    const el=document.getElementById('val-'+id);if(!el||!el.value)return;
+    const v=parseFloat(el.value);if(isNaN(v))return;
+    const st=fn(v,sexo);if(st)applySem(id,st);
+  });
+}
+
+// Inicializar fecha
+document.getElementById('fecha').value = new Date().toISOString().split('T')[0];
+
+// Cargar datos existentes desde Supabase si hay colId
+(async () => {
+  if(!colId) return;
+
+  const { data: col } = await sb.from('colaboradores')
+    .select('*, evaluacion:evaluacion_id(nombre_sesion, empresa:empresa_id(nombre))')
+    .eq('id', colId).single();
+
+  if(col) {
+    document.getElementById('empresa').value = col.evaluacion?.empresa?.nombre || '';
+    document.getElementById('codigo').value = col.codigo || '';
+    document.getElementById('area').value = col.area || '';
+    if(col.sexo === 'femenino') document.getElementById('sexo').value = 'F';
+    else if(col.sexo === 'masculino') document.getElementById('sexo').value = 'M';
+    if(col.edad) document.getElementById('edad').value = col.edad;
+    document.getElementById('topbar-info').textContent = `${col.evaluacion?.empresa?.nombre || ''} · ${col.codigo || col.id.slice(0,6)}`;
+  }
+
+  if(resId) {
+    const { data: res } = await sb.from('resultados_checkup').select('*').eq('id', resId).single();
+    if(res) {
+      const set = (id, val) => { const el=document.getElementById(id);if(el&&val!==null&&val!==undefined)el.value=val; };
+      set('val-peso', res.peso_kg);
+      set('val-talla', res.talla_cm);
+      set('val-grasa_p', res.masa_grasa_pct);
+      set('val-grasa_k', res.masa_grasa_kg);
+      set('val-muscular', res.masa_muscular_kg);
+      set('val-osea', res.masa_osea_kg);
+      set('val-agua', res.agua_corporal_pct);
+      set('val-visceral', res.grasa_visceral);
+      set('val-metabolica', res.edad_metabolica);
+      set('val-cintura', res.circunferencia_cintura_cm);
+      set('val-cadera', res.circunferencia_cadera_cm);
+      set('val-pas', res.presion_sistolica);
+      set('val-pad', res.presion_diastolica);
+      set('val-glic', res.glicemia_capilar);
+      set('observaciones', res.observaciones);
+      set('microaccion', res.microaccion);
+      autoIMC();
+      // Restaurar semáforos
+      const semMap = {
+        imc: res.semaforo_imc, grasa_p: res.semaforo_grasa_pct,
+        visceral: res.semaforo_grasa_visceral,
+        pas: res.semaforo_presion, pad: res.semaforo_presion,
+        glic: res.semaforo_glicemia,
+      };
+      Object.entries(semMap).forEach(([varId, val]) => {
+        if(!val) return;
+        const st = val==='verde'?'N':val==='amarillo'?'P':'A';
+        applySem(varId, st);
+      });
+    }
+  }
+})();
+
+// Guardar en Supabase
+async function guardarEnSupabase() {
+  if(!colId) { mostrarToast('No hay colaborador seleccionado', true); return; }
+
+  const sexoVal = document.getElementById('sexo').value;
+  const sexoStr = sexoVal==='F'?'femenino':sexoVal==='M'?'masculino':'no_indica';
+
+  // Actualizar colaborador
+  await sb.from('colaboradores').update({
+    codigo: document.getElementById('codigo').value.trim()||null,
+    area:   document.getElementById('area').value.trim()||null,
+    sexo:   sexoStr,
+    edad:   parseInt(document.getElementById('edad').value)||null,
+  }).eq('id', colId);
+
+  const imcEl = document.getElementById('val-imc');
+  const iccEl = document.getElementById('val-icc');
+  const imcVal = imcEl ? parseFloat(imcEl.textContent) : null;
+  const iccVal = iccEl ? parseFloat(iccEl.textContent) : null;
+
+  const recomData = {
+    recomendacion_alimentacion:  document.getElementById('recom-alimentación')?.value||null,
+    recomendacion_hidratacion:   document.getElementById('recom-hidratación')?.value||null,
+    recomendacion_actividad:     document.getElementById('recom-actividad-física')?.value||null,
+    recomendacion_descanso:      document.getElementById('recom-descanso-y-recuperación')?.value||null,
+    recomendacion_fitoterapia:   document.getElementById('recom-autocuidado---fitoterapia')?.value||null,
+    recomendacion_derivacion:    document.getElementById('recom-derivación-médica')?.value||null,
+  };
+
+  const resultData = {
+    colaborador_id:         colId,
+    peso_kg:                parseFloat(document.getElementById('val-peso')?.value)||null,
+    talla_cm:               parseFloat(document.getElementById('val-talla')?.value)||null,
+    imc:                    isNaN(imcVal)?null:imcVal,
+    masa_grasa_pct:         parseFloat(document.getElementById('val-grasa_p')?.value)||null,
+    masa_grasa_kg:          parseFloat(document.getElementById('val-grasa_k')?.value)||null,
+    masa_muscular_kg:       parseFloat(document.getElementById('val-muscular')?.value)||null,
+    masa_osea_kg:           parseFloat(document.getElementById('val-osea')?.value)||null,
+    agua_corporal_pct:      parseFloat(document.getElementById('val-agua')?.value)||null,
+    grasa_visceral:         parseInt(document.getElementById('val-visceral')?.value)||null,
+    edad_metabolica:        parseInt(document.getElementById('val-metabolica')?.value)||null,
+    circunferencia_cintura_cm: parseFloat(document.getElementById('val-cintura')?.value)||null,
+    circunferencia_cadera_cm:  parseFloat(document.getElementById('val-cadera')?.value)||null,
+    icc:                    isNaN(iccVal)?null:iccVal,
+    presion_sistolica:      parseInt(document.getElementById('val-pas')?.value)||null,
+    presion_diastolica:     parseInt(document.getElementById('val-pad')?.value)||null,
+    glicemia_capilar:       parseInt(document.getElementById('val-glic')?.value)||null,
+    semaforo_imc:           semToStr(getSemState('imc')),
+    semaforo_grasa_pct:     semToStr(getSemState('grasa_p')),
+    semaforo_grasa_visceral:semToStr(getSemState('visceral')),
+    semaforo_presion:       semToStr(getSemState('pas')),
+    semaforo_glicemia:      semToStr(getSemState('glic')),
+    observaciones:          document.getElementById('observaciones')?.value||null,
+    microaccion:            document.getElementById('microaccion')?.value||null,
+    ...recomData,
+  };
+
+  let error;
+  if(resId) {
+    const res = await sb.from('resultados_checkup').update(resultData).eq('id', resId);
+    error = res.error;
+  } else {
+    const res = await sb.from('resultados_checkup').insert(resultData);
+    error = res.error;
+    // Actualizar total participantes
+    const { data: cols } = await sb.from('colaboradores').select('id').eq('evaluacion_id', evalId);
+    if(cols) await sb.from('evaluaciones').update({total_participantes: cols.length}).eq('id', evalId);
+  }
+
+  if(error) { mostrarToast('Error al guardar: '+error.message, true); return; }
+  mostrarToast('Ficha guardada correctamente ✓');
+}
+
+function mostrarToast(msg, esError=false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast visible'+(esError?' error':'');
+  setTimeout(()=>t.className='toast', 3500);
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Encuesta de Bienestar — Nútrete</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --verde: #009444;
+    --verde-oscuro: #07542F;
+    --cafe: #6A3F15;
+    --gris-claro: #f4f6f4;
+    --gris-borde: #e0e8e3;
+    --texto: #1a2e1f;
+    --texto-suave: #5a7060;
+    --rojo: #c0392b;
+    --amarillo: #e67e22;
+    --sombra: 0 2px 12px rgba(7,84,47,0.08);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--gris-claro);
+    color: var(--texto);
+    min-height: 100vh;
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  .header {
+    background: var(--verde-oscuro);
+    padding: 16px 24px;
+    text-align: center;
+  }
+
+  .header-marca {
+    font-size: 20px;
+    font-weight: 800;
+    color: white;
+    letter-spacing: -0.3px;
+  }
+
+  .header-marca span {
+    display: inline-block;
+    width: 8px; height: 8px;
+    background: #7fc89a;
+    border-radius: 50%;
+    margin-left: 3px;
+    vertical-align: middle;
+  }
+
+  .header-sub {
+    font-size: 13px;
+    color: #a8d5b8;
+    margin-top: 2px;
+  }
+
+  .contenido {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 28px 16px 48px;
+  }
+
+  .card {
+    background: white;
+    border-radius: 14px;
+    padding: 28px;
+    box-shadow: var(--sombra);
+    border: 1px solid var(--gris-borde);
+    margin-bottom: 20px;
+  }
+
+  .seccion-label {
+    font-size: 12px;
+    color: var(--verde-oscuro);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--gris-borde);
+  }
+
+  .pregunta-bloque {
+    padding: 14px 0;
+    border-bottom: 1px solid var(--gris-borde);
+  }
+
+  .pregunta-bloque:last-child { border-bottom: none; padding-bottom: 0; }
+  .pregunta-bloque:first-of-type { padding-top: 0; }
+
+  .pregunta-texto {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--texto);
+    margin-bottom: 12px;
+    line-height: 1.5;
+  }
+
+  .opciones-radio {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .opcion-radio {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 14px;
+    cursor: pointer;
+    color: var(--texto);
+    line-height: 1.4;
+  }
+
+  .opcion-radio input {
+    margin-top: 2px;
+    accent-color: var(--verde);
+    flex-shrink: 0;
+    width: 16px; height: 16px;
+  }
+
+  .escala-likert {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+  }
+
+  .escala-btn {
+    width: 48px; height: 48px;
+    border-radius: 10px;
+    border: 1.5px solid var(--gris-borde);
+    background: white;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s;
+    color: var(--texto);
+  }
+
+  .escala-btn:hover { border-color: var(--verde); color: var(--verde); }
+  .escala-btn.seleccionado { background: var(--verde); color: white; border-color: var(--verde); }
+
+  .escala-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--texto-suave);
+    margin-top: 4px;
+  }
+
+  .opcional-badge {
+    display: inline-block;
+    background: #f0f7f3;
+    color: var(--texto-suave);
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 500;
+    margin-left: 8px;
+    vertical-align: middle;
+  }
+
+  .btn-enviar {
+    width: 100%;
+    padding: 16px;
+    background: var(--verde);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s;
+    margin-top: 8px;
+  }
+
+  .btn-enviar:hover { background: var(--verde-oscuro); }
+  .btn-enviar:disabled { background: #aaa; cursor: not-allowed; }
+
+  .estado-pantalla {
+    text-align: center;
+    padding: 60px 24px;
+  }
+
+  .estado-icono { font-size: 56px; margin-bottom: 20px; }
+
+  .estado-titulo {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--verde-oscuro);
+    margin-bottom: 10px;
+  }
+
+  .estado-texto {
+    font-size: 15px;
+    color: var(--texto-suave);
+    line-height: 1.7;
+    margin-bottom: 28px;
+  }
+
+  .firma {
+    background: white;
+    border-radius: 12px;
+    border: 1px solid var(--gris-borde);
+    padding: 18px 24px;
+    display: inline-block;
+  }
+
+  .firma-nombre {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--verde-oscuro);
+  }
+
+  .firma-tagline {
+    font-size: 12px;
+    color: var(--texto-suave);
+    margin-top: 3px;
+  }
+
+  .loading-pantalla {
+    text-align: center;
+    padding: 80px 24px;
+    color: var(--texto-suave);
+  }
+
+  .spinner {
+    width: 36px; height: 36px;
+    border: 3px solid var(--gris-borde);
+    border-top-color: var(--verde);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 16px;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  @media (max-width: 480px) {
+    .card { padding: 20px 16px; }
+    .escala-btn { width: 44px; height: 44px; font-size: 15px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-marca">Nútrete<span></span></div>
+  <div class="header-sub" id="header-sub">Cargando encuesta...</div>
+</div>
+
+<div class="contenido" id="contenido">
+  <div class="loading-pantalla">
+    <div class="spinner"></div>
+    <p>Cargando encuesta...</p>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://jpybenygergddnksbwzg.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpweWJlbnlnZXJnZGRua3Nid3pnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxMjMzOTUsImV4cCI6MjEwMzY5OTM5NX0.-KTVBiXLwvQzmRg7BqG5GmH8O2YEk08c3IuRM-VwTeE';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+(async () => {
+  const params = new URLSearchParams(location.search);
+  const token = params.get('token');
+
+  if (!token) {
+    mostrarError('Link inválido', 'Este link no contiene un token de encuesta válido.');
+    return;
+  }
+
+  const { data: encuesta, error } = await sb.from('encuestas')
+    .select('*, evaluacion:evaluacion_id(nombre_sesion, empresa:empresa_id(nombre))')
+    .eq('token', token)
+    .single();
+
+  if (error || !encuesta) {
+    mostrarError('Encuesta no encontrada', 'Este link no existe o ha expirado.');
+    return;
+  }
+
+  if (!encuesta.activa) {
+    mostrarError('Encuesta cerrada', 'Esta encuesta ya no está disponible. Contacta a tu encargado de bienestar.');
+    return;
+  }
+
+  const empresa = encuesta.evaluacion?.empresa?.nombre || '';
+  document.getElementById('header-sub').textContent =
+    `${encuesta.tipo === 'gerencia' ? 'Diagnóstico Organizacional' : 'Encuesta de Bienestar'} — ${empresa}`;
+
+  if (encuesta.tipo === 'gerencia') {
+    mostrarFormGerencia(token, encuesta.id, empresa);
+  } else {
+    mostrarFormColaborador(token, encuesta.id, empresa);
+  }
+})();
+
+// ══════════════════════════════════════════════
+// FORMULARIO COLABORADORES
+// ══════════════════════════════════════════════
+function mostrarFormColaborador(token, encuestaId, empresa) {
+  document.getElementById('contenido').innerHTML = `
+
+    <div class="card">
+      <div class="seccion-label">Sección 1 — Alimentación en el trabajo</div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">¿Con qué frecuencia desayunas antes de llegar al trabajo?</div>
+        <div class="opciones-radio">
+          ${radio('desayuno', ['Todos los días','Casi siempre','A veces','Casi nunca','Nunca'])}
+        </div>
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">¿Dónde almuerzas habitualmente?</div>
+        <div class="opciones-radio">
+          ${radio('almuerzo', ['Casino de la empresa','Traigo comida de casa','Salgo a comer afuera','No almuerzo','Varía'])}
+        </div>
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">¿Cómo evalúas la calidad de tu alimentación en el trabajo?</div>
+        ${escala('calidad', 'Muy mala', 'Excelente')}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="seccion-label">Sección 2 — Hábitos de vida</div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">¿Cuántas horas duermes habitualmente?</div>
+        <div class="opciones-radio">
+          ${radio('sueno', ['Menos de 5 horas','5-6 horas','7-8 horas','Más de 8 horas'])}
+        </div>
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">¿Con qué frecuencia realizas actividad física?</div>
+        <div class="opciones-radio">
+          ${radio('actividad', ['Todos los días','3-4 veces por semana','1-2 veces por semana','Casi nunca','Nunca'])}
+        </div>
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">¿Cuántos litros de agua bebes al día aproximadamente?</div>
+        <div class="opciones-radio">
+          ${radio('agua', ['Menos de 1 litro','1-1.5 litros','1.5-2 litros','Más de 2 litros'])}
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="seccion-label">Sección 3 — Bienestar emocional</div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">¿Cómo describirías tu nivel de estrés en el trabajo?</div>
+        ${escala('estres', 'Sin estrés', 'Muy estresado/a')}
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">¿Cómo evalúas tu bienestar general en este momento?</div>
+        ${escala('bienestar', 'Muy malo', 'Excelente')}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="seccion-label">Sección 4 — Intereses</div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">¿Qué actividades de bienestar te interesarían? (puedes marcar varias)</div>
+        <div class="opciones-radio">
+          ${checkbox('intereses', [
+            ['aromaterapia','Taller de aromaterapia y plantas medicinales'],
+            ['fitoterapia','Charla de fitoterapia y hierbas medicinales'],
+            ['checkup','Evaluación nutricional con bioimpedancia (Check-up Nútrete)'],
+            ['talleres','Talleres de alimentación saludable'],
+          ])}
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="seccion-label">Sección 5 — Tu salud <span class="opcional-badge">opcional</span></div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">¿Cómo describes tu estado de salud general?</div>
+        <div class="opciones-radio">
+          ${radio('salud', ['Muy bueno','Bueno','Regular','Malo'])}
+        </div>
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">¿Tienes alguna condición de salud diagnosticada? (puedes marcar varias)</div>
+        <div class="opciones-radio">
+          ${checkbox('condiciones', [
+            ['Hipertensión','Hipertensión'],
+            ['Diabetes o prediabetes','Diabetes o prediabetes'],
+            ['Sobrepeso u obesidad','Sobrepeso u obesidad'],
+            ['Colesterol elevado','Colesterol elevado'],
+            ['Ninguna','Ninguna'],
+            ['Prefiero no indicar','Prefiero no indicar'],
+          ])}
+        </div>
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">¿Te interesaría participar en el Check-up Nútrete (evaluación nutricional con bioimpedancia)?</div>
+        <div class="opciones-radio">
+          ${radio('checkup_interes', ['Sí, me interesa','Tal vez','No por ahora'])}
+        </div>
+      </div>
+    </div>
+
+    <button class="btn-enviar" id="btn-enviar" onclick="enviarColaborador('${encuestaId}')">
+      Enviar respuestas
+    </button>
+  `;
+}
+
+// ══════════════════════════════════════════════
+// FORMULARIO GERENCIA
+// ══════════════════════════════════════════════
+function mostrarFormGerencia(token, encuestaId, empresa) {
+  document.getElementById('contenido').innerHTML = `
+
+    <div class="card">
+      <div class="seccion-label">Diagnóstico organizacional</div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">¿Cuántos colaboradores tiene la empresa aproximadamente?</div>
+        <div class="opciones-radio">
+          ${radio('num_colaboradores', ['Menos de 30','30-100','100-300','Más de 300'])}
+        </div>
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">¿Han realizado programas de bienestar antes?</div>
+        <div class="opciones-radio">
+          ${radio('programas_prev', ['Sí, con buenos resultados','Sí, pero sin resultados claros','No, nunca','Estamos evaluando hacerlo'])}
+        </div>
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">¿Cuáles son las principales problemáticas de salud que reportan los colaboradores? (puedes marcar varias)</div>
+        <div class="opciones-radio">
+          ${checkbox('problematicas', [
+            ['Estrés y agotamiento','Estrés y agotamiento'],
+            ['Problemas de alimentación','Problemas de alimentación'],
+            ['Sedentarismo','Sedentarismo'],
+            ['Problemas de sueño','Problemas de sueño'],
+            ['Enfermedades crónicas','Enfermedades crónicas (hipertensión, diabetes, etc.)'],
+            ['No tenemos datos claros','No tenemos datos claros'],
+          ])}
+        </div>
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">¿Tienen datos de ausentismo o licencias médicas frecuentes?</div>
+        <div class="opciones-radio">
+          ${radio('ausentismo', ['Sí, es un problema relevante','Algunos casos aislados','No tenemos datos','Tenemos datos pero son bajos'])}
+        </div>
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">¿Cuál es el presupuesto aproximado disponible para bienestar este año?</div>
+        <div class="opciones-radio">
+          ${radio('presupuesto', ['Menos de $500.000 CLP','$500.000 - $2.000.000 CLP','$2.000.000 - $5.000.000 CLP','Más de $5.000.000 CLP','Aún no está definido'])}
+        </div>
+      </div>
+
+      <div class="pregunta-bloque">
+        <div class="pregunta-texto">¿Qué resultados esperan de un programa de bienestar? (puedes marcar varias)</div>
+        <div class="opciones-radio">
+          ${checkbox('resultados_esperados', [
+            ['Reducir ausentismo','Reducir ausentismo y licencias médicas'],
+            ['Mejorar el clima laboral','Mejorar el clima laboral'],
+            ['Cumplir exigencias legales','Cumplir exigencias legales o contractuales'],
+            ['Mejorar la productividad','Mejorar la productividad'],
+            ['Fidelizar a los colaboradores','Fidelizar y retener a los colaboradores'],
+            ['Todos los anteriores','Todos los anteriores'],
+          ])}
+        </div>
+      </div>
+    </div>
+
+    <button class="btn-enviar" id="btn-enviar" onclick="enviarGerencia('${encuestaId}')">
+      Enviar respuestas
+    </button>
+  `;
+}
+
+// ══════════════════════════════════════════════
+// ENVIAR RESPUESTAS
+// ══════════════════════════════════════════════
+async function enviarColaborador(encuestaId) {
+  const btn = document.getElementById('btn-enviar');
+  btn.disabled = true;
+  btn.textContent = 'Enviando...';
+
+  const getRadio = (name) => document.querySelector(`input[name="${name}"]:checked`)?.value || null;
+  const getEscalaVal = (grupo) => {
+    const b = document.querySelector(`[data-grupo="${grupo}"].seleccionado`);
+    return b ? parseInt(b.dataset.val) : null;
+  };
+  const getCheck = (name) => [...document.querySelectorAll(`input[name="${name}"]:checked`)].map(i => i.value);
+
+  const sueno = getRadio('sueno');
+  const agua = getRadio('agua');
+
+  const { error } = await sb.from('respuestas_encuesta').insert({
+    encuesta_id: encuestaId,
+    frecuencia_desayuno: getRadio('desayuno'),
+    lugar_almuerzo: getRadio('almuerzo'),
+    calidad_alimentacion_percibida: getEscalaVal('calidad'),
+    horas_sueno: sueno === 'Menos de 5 horas' ? 4.5 : sueno === '5-6 horas' ? 5.5 : sueno === '7-8 horas' ? 7.5 : 8.5,
+    actividad_fisica_frecuencia: getRadio('actividad'),
+    consumo_agua_litros: agua === 'Menos de 1 litro' ? 0.5 : agua === '1-1.5 litros' ? 1.25 : agua === '1.5-2 litros' ? 1.75 : 2.5,
+    nivel_estres: getEscalaVal('estres'),
+    bienestar_general: getEscalaVal('bienestar'),
+    interes_aromaterapia: getCheck('intereses').includes('aromaterapia'),
+    interes_fitoterapia: getCheck('intereses').includes('fitoterapia'),
+    interes_checkup: getCheck('intereses').includes('checkup'),
+    interes_talleres: getCheck('intereses').includes('talleres'),
+    autopercepcion_salud: getRadio('salud'),
+    condiciones_diagnosticadas: getCheck('condiciones'),
+    disposicion_checkup: getRadio('checkup_interes') === 'Sí, me interesa',
+  });
+
+  if (error) {
+    btn.disabled = false;
+    btn.textContent = 'Enviar respuestas';
+    alert('Hubo un error al enviar. Intenta de nuevo.');
+    return;
+  }
+
+  mostrarGracias();
+}
+
+async function enviarGerencia(encuestaId) {
+  const btn = document.getElementById('btn-enviar');
+  btn.disabled = true;
+  btn.textContent = 'Enviando...';
+
+  const getRadio = (name) => document.querySelector(`input[name="${name}"]:checked`)?.value || null;
+  const getCheck = (name) => [...document.querySelectorAll(`input[name="${name}"]:checked`)].map(i => i.value);
+
+  const datos = {
+    num_colaboradores: getRadio('num_colaboradores'),
+    programas_prev: getRadio('programas_prev'),
+    problematicas: getCheck('problematicas'),
+    ausentismo: getRadio('ausentismo'),
+    presupuesto: getRadio('presupuesto'),
+    resultados_esperados: getCheck('resultados_esperados'),
+  };
+
+  const { error } = await sb.from('respuestas_encuesta').insert({
+    encuesta_id: encuestaId,
+    autopercepcion_salud: JSON.stringify(datos),
+  });
+
+  if (error) {
+    btn.disabled = false;
+    btn.textContent = 'Enviar respuestas';
+    alert('Hubo un error al enviar. Intenta de nuevo.');
+    return;
+  }
+
+  mostrarGracias();
+}
+
+function mostrarGracias() {
+  document.getElementById('contenido').innerHTML = `
+    <div class="estado-pantalla">
+      <div class="estado-icono">🌿</div>
+      <div class="estado-titulo">¡Gracias por responder!</div>
+      <p class="estado-texto">
+        Tus respuestas han sido registradas de forma anónima.<br>
+        El equipo de Nútrete las usará para diseñar un programa<br>
+        de bienestar a la medida de tu equipo.
+      </p>
+      <div class="firma">
+        <div class="firma-nombre">Nútrete®</div>
+        <div class="firma-tagline">El Método Nútrete® desarrolla el Criterio para la Salud.</div>
+      </div>
+    </div>
+  `;
+}
+
+function mostrarError(titulo, texto) {
+  document.getElementById('header-sub').textContent = '';
+  document.getElementById('contenido').innerHTML = `
+    <div class="estado-pantalla">
+      <div class="estado-icono">🔒</div>
+      <div class="estado-titulo">${titulo}</div>
+      <p class="estado-texto">${texto}</p>
+    </div>
+  `;
+}
+
+// ══════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════
+function radio(name, opciones) {
+  return opciones.map(o =>
+    `<label class="opcion-radio"><input type="radio" name="${name}" value="${o}"> ${o}</label>`
+  ).join('');
+}
+
+function checkbox(name, opciones) {
+  return opciones.map(([val, label]) =>
+    `<label class="opcion-radio"><input type="checkbox" name="${name}" value="${val}"> ${label}</label>`
+  ).join('');
+}
+
+function escala(grupo, labelMin, labelMax) {
+  return `
+    <div class="escala-likert">
+      ${[1,2,3,4,5].map(n =>
+        `<button class="escala-btn" onclick="seleccionarEscala(this,'${grupo}')" data-grupo="${grupo}" data-val="${n}">${n}</button>`
+      ).join('')}
+    </div>
+    <div class="escala-labels"><span>${labelMin}</span><span>${labelMax}</span></div>
+  `;
+}
+
+function seleccionarEscala(btn, grupo) {
+  document.querySelectorAll(`[data-grupo="${grupo}"]`).forEach(b => b.classList.remove('seleccionado'));
+  btn.classList.add('seleccionado');
+}
+</script>
+</body>
+</html>
