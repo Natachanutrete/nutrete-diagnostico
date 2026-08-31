@@ -1660,6 +1660,16 @@ function mostrarResultadosGerencia(respuestas) {
   cont.innerHTML = `
     <div style="font-size:12px;color:var(--texto-suave);margin-bottom:4px;">${respuestas.length} respuesta(s) recibida(s)</div>
 
+    ${d.org_empresa ? `<div style="background:var(--gris-claro);border-radius:8px;padding:14px 16px;margin-bottom:20px;">
+      <div style="font-size:13px;font-weight:700;color:var(--verde-oscuro);margin-bottom:8px;">Datos de la organización</div>
+      ${fila('Empresa', d.org_empresa)}
+      ${fila('Contacto', d.org_contacto)}
+      ${fila('Cargo', d.org_cargo)}
+      ${fila('Email', d.org_email)}
+      ${fila('Sede', d.org_sede)}
+      ${fila('Fecha de aplicación', d.org_fecha)}
+    </div>` : ''}
+
     ${seccion('A. Contexto organizacional')}
     ${fila('Nº trabajadores', d.num_trabajadores)}
     ${fila('Nº centros/sedes', d.num_centros)}

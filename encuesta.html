@@ -428,11 +428,70 @@ function mostrarFormColaborador(token, encuestaId, empresa) {
 function mostrarFormGerencia(token, encuestaId, empresa) {
   document.getElementById('contenido').innerHTML = `
 
-    <div class="card" style="background:#f0f7f3; border-color:#c8ebd5; margin-bottom:20px;">
-      <div style="font-size:14px; color:var(--verde-oscuro); line-height:1.7;">
-        Este diagnóstico es confidencial y será utilizado exclusivamente por Nútrete para diseñar un programa de bienestar a la medida de su organización. Tiempo estimado: 15–20 minutos. No hay respuestas correctas o incorrectas.
+    <!-- PORTADA -->
+    <div class="card" style="margin-bottom:20px;">
+      <div style="background:var(--verde-oscuro);margin:-28px -28px 24px;padding:28px;border-radius:10px 10px 0 0;">
+        <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#7fc89a;margin-bottom:8px;">Nútrete EIRL · Diagnóstico Empresarial</div>
+        <div style="font-size:22px;font-weight:800;color:white;margin-bottom:4px;">Diagnóstico de Bienestar<br><span style="color:#7fc89a;">Organizacional</span></div>
+        <div style="font-size:13px;color:#a8d5b8;font-style:italic;margin-top:8px;">El Método Nútrete® desarrolla el Criterio para la Salud</div>
+      </div>
+
+      <div style="font-size:13px;font-weight:700;color:var(--verde-oscuro);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:16px;">Datos de la organización</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+        <div style="grid-column:1/-1;" class="campo">
+          <label>Empresa / Institución</label>
+          <input type="text" id="org-empresa" placeholder="Nombre de la organización" style="width:100%;padding:9px 12px;border:1.5px solid var(--gris-borde);border-radius:8px;font-size:14px;font-family:inherit;" />
+        </div>
+        <div class="campo">
+          <label>Persona de contacto</label>
+          <input type="text" id="org-contacto" placeholder="Nombre completo" style="width:100%;padding:9px 12px;border:1.5px solid var(--gris-borde);border-radius:8px;font-size:14px;font-family:inherit;" />
+        </div>
+        <div class="campo">
+          <label>Cargo</label>
+          <input type="text" id="org-cargo" placeholder="RRHH / Bienestar / Personas / otro" style="width:100%;padding:9px 12px;border:1.5px solid var(--gris-borde);border-radius:8px;font-size:14px;font-family:inherit;" />
+        </div>
+        <div class="campo">
+          <label>Correo electrónico</label>
+          <input type="email" id="org-email" placeholder="contacto@empresa.cl" style="width:100%;padding:9px 12px;border:1.5px solid var(--gris-borde);border-radius:8px;font-size:14px;font-family:inherit;" />
+        </div>
+        <div class="campo">
+          <label>Sede / Ubicación</label>
+          <input type="text" id="org-sede" placeholder="Ciudad o región(es)" style="width:100%;padding:9px 12px;border:1.5px solid var(--gris-borde);border-radius:8px;font-size:14px;font-family:inherit;" />
+        </div>
+        <div class="campo">
+          <label>Fecha de aplicación</label>
+          <input type="date" id="org-fecha" style="width:100%;padding:9px 12px;border:1.5px solid var(--gris-borde);border-radius:8px;font-size:14px;font-family:inherit;" />
+        </div>
       </div>
     </div>
+
+    <!-- INTRODUCCIÓN -->
+    <div class="card" style="margin-bottom:20px;">
+      <div style="font-size:15px;font-weight:700;color:var(--verde-oscuro);margin-bottom:10px;">¿Qué es este Diagnóstico?</div>
+      <p style="font-size:14px;color:var(--texto-suave);line-height:1.75;margin-bottom:12px;">El <strong style="color:var(--texto);">Diagnóstico Empresarial de Bienestar Nútrete</strong> es una herramienta de levantamiento técnico diseñada para identificar, de manera estructurada y empática, las necesidades reales de los colaboradores en torno a su bienestar, hábitos de salud, alimentación y autocuidado dentro del entorno laboral.</p>
+      <p style="font-size:14px;color:var(--texto-suave);line-height:1.75;margin-bottom:16px;">No es una encuesta de clima laboral ni una evaluación de riesgos. Es una conversación estratégica orientada a construir una propuesta de bienestar ajustada a la realidad concreta de sus equipos.</p>
+      <div style="font-size:14px;font-weight:600;color:var(--verde-oscuro);margin-bottom:10px;">¿Para qué sirve?</div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        ${['Identificar las brechas de bienestar más relevantes en la organización','Conocer los intereses y motivaciones reales de los colaboradores','Mapear el contexto operativo que influye en los hábitos de salud del equipo','Definir las prioridades de intervención antes de diseñar cualquier programa','Construir una propuesta técnica personalizada y ajustada al presupuesto'].map(item => `
+          <div style="display:flex;gap:10px;align-items:flex-start;">
+            <span style="color:var(--verde);font-weight:700;flex-shrink:0;">→</span>
+            <span style="font-size:14px;color:var(--texto-suave);">${item}</span>
+          </div>`).join('')}
+      </div>
+    </div>
+
+    <!-- AVISO CONFIDENCIALIDAD -->
+    <div style="background:#f0f7f3;border:1.5px solid #c8ebd5;border-radius:10px;padding:16px 20px;margin-bottom:24px;">
+      <div style="font-size:13px;font-weight:700;color:var(--verde-oscuro);margin-bottom:6px;">📌 Confidencialidad y protección de datos</div>
+      <p style="font-size:13px;color:var(--texto-suave);line-height:1.7;margin-bottom:10px;">La información recabada en este diagnóstico es <strong style="color:var(--texto);">estrictamente confidencial</strong> y será utilizada exclusivamente por Nútrete EIRL para diseñar una propuesta de bienestar personalizada para su organización.</p>
+      <p style="font-size:13px;color:var(--texto-suave);line-height:1.7;margin-bottom:12px;">Los datos serán tratados conforme a la <strong style="color:var(--texto);">Ley N° 19.628 sobre Protección de la Vida Privada</strong> (Chile) y no serán compartidos con terceros sin consentimiento expreso de la organización.</p>
+      <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;">
+        <input type="checkbox" id="acepta-confidencialidad" style="margin-top:3px;accent-color:var(--verde);width:16px;height:16px;flex-shrink:0;" />
+        <span style="font-size:13px;color:var(--texto);">He leído y acepto las condiciones de confidencialidad y el tratamiento de datos indicado anteriormente.</span>
+      </label>
+    </div>
+
+    <div style="font-size:13px;color:var(--texto-suave);text-align:center;margin-bottom:20px;">Tiempo estimado de completar el diagnóstico: <strong style="color:var(--texto);">15–20 minutos</strong></div>
 
     <!-- MÓDULO A: CONTEXTO -->
     <div class="card">
@@ -721,8 +780,20 @@ function toggleSeccion(id) {
   if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
 }
 
+// Inicializar fecha de hoy en formulario de gerencia
+setTimeout(() => {
+  const fechaEl = document.getElementById('org-fecha');
+  if (fechaEl && !fechaEl.value) fechaEl.value = new Date().toISOString().split('T')[0];
+}, 100);
+
 
 async function enviarGerencia(encuestaId) {
+  // Validar checkbox de confidencialidad
+  if (!document.getElementById('acepta-confidencialidad')?.checked) {
+    alert('Debes aceptar las condiciones de confidencialidad para continuar.');
+    return;
+  }
+
   const btn = document.getElementById('btn-enviar');
   btn.disabled = true;
   btn.textContent = 'Enviando...';
@@ -731,11 +802,18 @@ async function enviarGerencia(encuestaId) {
   const getCheck = (name) => [...document.querySelectorAll(`input[name="${name}"]:checked`)].map(i => i.value);
   const getText = (id) => document.getElementById(id)?.value?.trim() || null;
   const getEscala = (grupo) => {
-    const btn = document.querySelector(`[data-grupo="${grupo}"].seleccionado`);
-    return btn ? parseInt(btn.dataset.val) : null;
+    const b = document.querySelector(`[data-grupo="${grupo}"].seleccionado`);
+    return b ? parseInt(b.dataset.val) : null;
   };
 
   const datos = {
+    // Datos de la organización
+    org_empresa: getText('org-empresa'),
+    org_contacto: getText('org-contacto'),
+    org_cargo: getText('org-cargo'),
+    org_email: getText('org-email'),
+    org_sede: getText('org-sede'),
+    org_fecha: getText('org-fecha'),
     // A. Contexto
     num_trabajadores: getRadio('num_trabajadores'),
     num_centros: getRadio('num_centros'),
