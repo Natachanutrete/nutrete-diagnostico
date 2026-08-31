@@ -845,21 +845,48 @@
 
     <!-- ══ SECCIÓN: INFORMES ══ -->
     <div class="seccion" id="sec-informes">
-      <div class="seccion-titulo">Informes grupales</div>
-      <div class="seccion-subtitulo">Reportes anónimos para compartir con la empresa</div>
-      <div class="card">
-        <div class="card-titulo">Seleccionar evaluación completada</div>
-        <div class="form-grid">
-          <div class="campo">
-            <label>Evaluación</label>
-            <select id="informe-evaluacion" onchange="generarInforme()">
-              <option value="">Selecciona una evaluación...</option>
-            </select>
+      <div class="seccion-titulo">Informes</div>
+      <div class="seccion-subtitulo">Diagnóstico automático por empresa</div>
+
+      <!-- Sub-tabs -->
+      <div style="display:flex;gap:4px;background:white;border-radius:var(--radio);padding:5px;margin-bottom:24px;box-shadow:var(--sombra);border:1px solid var(--gris-borde);">
+        <button class="tab activo" id="subtab-scoring" onclick="cambiarSubtab('scoring')" style="flex:1;">🧠 Motor Nútrete® — Scoring</button>
+        <button class="tab" id="subtab-diagnostico" onclick="cambiarSubtab('diagnostico')" style="flex:1;">📊 Diagnóstico Check-up</button>
+      </div>
+
+      <!-- Sub-sección: Scoring -->
+      <div id="sub-scoring">
+        <div class="card">
+          <div class="card-titulo">Seleccionar encuesta de colaboradores</div>
+          <div class="form-grid">
+            <div class="campo">
+              <label>Encuesta</label>
+              <select id="scoring-encuesta-id">
+                <option value="">Selecciona una encuesta de colaboradores...</option>
+              </select>
+            </div>
+            <div class="campo" style="align-self:end;">
+              <button class="btn btn-verde" onclick="ejecutarMotorScoring()">▶ Calcular scoring</button>
+            </div>
           </div>
         </div>
+        <div id="scoring-resultado" style="display:none;"></div>
       </div>
-      <div id="informe-contenido" style="display:none;">
-        <!-- El informe se genera aquí dinámicamente -->
+
+      <!-- Sub-sección: Diagnóstico Check-up -->
+      <div id="sub-diagnostico" style="display:none;">
+        <div class="card">
+          <div class="card-titulo">Seleccionar evaluación</div>
+          <div class="form-grid">
+            <div class="campo">
+              <label>Evaluación</label>
+              <select id="informe-evaluacion" onchange="generarInforme()">
+                <option value="">Selecciona una evaluación...</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div id="informe-contenido" style="display:none;"></div>
       </div>
     </div>
 
@@ -1333,6 +1360,41 @@ function construirTabs() {
   ).join('');
 }
 
+function cambiarSubtab(id) {
+  ['scoring','diagnostico'].forEach(t => {
+    document.getElementById(`sub-${t}`).style.display = t === id ? 'block' : 'none';
+    document.getElementById(`subtab-${t}`)?.classList.toggle('activo', t === id);
+  });
+}
+
+async function ejecutarMotorScoring() {
+  const sel = document.getElementById('scoring-encuesta-id');
+  const encuestaId = sel.value;
+  const empresa = sel.options[sel.selectedIndex]?.dataset?.empresa || 'Empresa';
+  const resultado = document.getElementById('scoring-resultado');
+
+  if (!encuestaId) { mostrarToast('Selecciona una encuesta primero', true); return; }
+
+  resultado.style.display = 'block';
+  resultado.innerHTML = '<div class="loading"><div class="spinner"></div>Calculando scoring...</div>';
+
+  const { data: respuestas } = await sb.from('respuestas_encuesta')
+    .select('*')
+    .eq('encuesta_id', encuestaId);
+
+  if (!respuestas || !respuestas.length) {
+    resultado.innerHTML = '<div class="card"><div class="empty-state"><p>No hay respuestas en esta encuesta aún.</p></div></div>';
+    return;
+  }
+
+  const datos = respuestas.map(r => {
+    try { return JSON.parse(r.autopercepcion_salud || '{}'); } catch(e) { return {}; }
+  });
+
+  const scoring = calcularScoring(datos);
+  resultado.innerHTML = `<div class="card">${renderScoring(scoring, empresa)}</div>`;
+}
+
 function cambiarTab(id) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('activo'));
   document.querySelectorAll('.seccion').forEach(s => s.classList.remove('activa'));
@@ -1568,6 +1630,16 @@ async function cargarEncuestas() {
     sel.innerHTML = '<option value="">Selecciona una encuesta...</option>' +
       data.map(enc =>
         `<option value="${enc.id}" data-tipo="${enc.tipo}">${enc.evaluacion?.empresa?.nombre || '—'} — ${enc.tipo === 'colaborador' ? 'Colaboradores' : 'Gerencia'}</option>`
+      ).join('');
+  }
+
+  // Llenar selector de scoring (solo colaboradores)
+  const selScoring = document.getElementById('scoring-encuesta-id');
+  if (selScoring) {
+    const colaboradores = data.filter(e => e.tipo === 'colaborador');
+    selScoring.innerHTML = '<option value="">Selecciona una encuesta de colaboradores...</option>' +
+      colaboradores.map(enc =>
+        `<option value="${enc.id}" data-empresa="${enc.evaluacion?.empresa?.nombre || ''}">${enc.evaluacion?.empresa?.nombre || '—'} — ${enc.evaluacion?.nombre_sesion || ''}</option>`
       ).join('');
   }
 }
@@ -2263,6 +2335,307 @@ function abrirCheckupCompleto(evalId, colId, resId) {
 
 function verEvaluacionesDeEmpresa(empresaId) {
   cambiarTab('evaluaciones');
+}
+
+// ══════════════════════════════════════════════
+// MOTOR DE SCORING NÚTRETE
+// 7 Dimensiones · Escala 0–100
+// ══════════════════════════════════════════════
+
+function calcularScoring(datos) {
+  const n = datos.length;
+  if (!n) return null;
+
+  // Normalizar escala Likert 1–5 a 0–100
+  const norm = (key) => {
+    const vals = datos.map(d => d[key]).filter(v => v && !isNaN(v));
+    if (!vals.length) return null;
+    const prom = vals.reduce((a,b) => a+b, 0) / vals.length;
+    return Math.round(((prom - 1) / 4) * 100);
+  };
+
+  // Invertir (cuando valor alto = peor resultado)
+  const normInv = (key) => {
+    const v = norm(key);
+    return v !== null ? 100 - v : null;
+  };
+
+  // Opción múltiple → score según valor clínico
+  const opcionScore = (key, mapa) => {
+    const vals = datos.map(d => d[key]).filter(Boolean);
+    if (!vals.length) return null;
+    const scores = vals.map(v => mapa[v] ?? 50);
+    return Math.round(scores.reduce((a,b) => a+b, 0) / scores.length);
+  };
+
+  // Promedio de scores válidos
+  const promScores = (arr) => {
+    const validos = arr.filter(v => v !== null && v !== undefined);
+    if (!validos.length) return null;
+    return Math.round(validos.reduce((a,b) => a+b, 0) / validos.length);
+  };
+
+  // ── DIMENSIÓN 1: BIENESTAR PERCIBIDO ──
+  const d1 = promScores([
+    norm('bienestar_general'),
+    norm('satisfaccion_vida'),
+    norm('herramientas_bienestar'),
+    norm('prioridad_bienestar'),
+  ]);
+
+  // ── DIMENSIÓN 2: ENERGÍA Y VITALIDAD ──
+  const sueno_score = opcionScore('horas_sueno', {
+    'Menos de 5 horas': 10, '5–6 horas': 35, '6–7 horas': 65, '7–8 horas': 95, 'Más de 8 horas': 80
+  });
+  const d2 = promScores([
+    norm('nivel_energia'),
+    normInv('cansancio_jornada'),
+    norm('calidad_sueno'),
+    norm('descansado_amanecer'),
+    normInv('trabajo_afecta_sueno'),
+    sueno_score,
+    norm('habitos_energia'),
+  ]);
+
+  // ── DIMENSIÓN 3: ALIMENTACIÓN Y HÁBITOS ──
+  const frutas_score = opcionScore('frutas_verduras', {
+    'Todos los días': 100, '5–6 días a la semana': 85, '3–4 días a la semana': 65,
+    '1–2 días a la semana': 35, 'Casi nunca': 10
+  });
+  const ultra_score = opcionScore('ultraprocesados', {
+    'Todos los días': 10, '5–6 días a la semana': 25, '3–4 días a la semana': 50,
+    '1–2 días a la semana': 75, 'Casi nunca': 95
+  });
+  const comidas_score = opcionScore('comidas_tranquilas', {
+    'Siempre': 100, 'Frecuentemente': 80, 'A veces': 55, 'Rara vez': 25, 'Nunca': 5
+  });
+  const d3 = promScores([
+    norm('calidad_alimentacion'),
+    frutas_score,
+    ultra_score,
+    norm('acceso_saludable'),
+    normInv('jornada_dificulta_alim'),
+    comidas_score,
+  ]);
+
+  // ── DIMENSIÓN 4: MOVIMIENTO Y CUERPO ──
+  const actividad_score = opcionScore('dias_actividad', {
+    '0 días': 5, '1–2 días': 35, '3–4 días': 75, '5–6 días': 95, '7 días': 90
+  });
+  const sedentario_score = opcionScore('tiempo_sedentario', {
+    'Menos de 2 horas': 100, '2–4 horas': 80, '4–6 horas': 55,
+    '6–8 horas': 25, 'Más de 8 horas': 5, 'No aplica a mi trabajo': 60
+  });
+  const d4 = promScores([
+    actividad_score,
+    sedentario_score,
+    norm('pausas_movimiento'),
+    norm('trabajo_facilita_actividad'),
+  ]);
+
+  // ── DIMENSIÓN 5: ESTRÉS Y RECURSOS PERSONALES ──
+  const d5 = promScores([
+    normInv('carga_laboral'),
+    normInv('desconexion_trabajo'),
+    norm('herramientas_estres'),
+    norm('apoyo_laboral'),
+  ]);
+
+  // ── DIMENSIÓN 6: ENTORNO LABORAL ──
+  const d6 = promScores([
+    norm('ambiente_laboral'),
+    norm('opiniones_escuchadas'),
+    norm('respeto_laboral'),
+    norm('carga_adecuada'),
+    norm('autonomia_trabajo'),
+    norm('trabajo_facilita_habitos'),
+    norm('cultura_bienestar'),
+  ]);
+
+  // ── DIMENSIÓN 7: AUTOCUIDADO Y SALUD PERSONAL ──
+  const autocuidado_score = norm('facilidad_autocuidado');
+  const plantas_score = opcionScore('uso_plantas', {
+    'Sí, frecuentemente': 90, 'Sí, ocasionalmente': 70,
+    'Lo he utilizado alguna vez': 50, 'No': 40, 'No sé suficiente sobre el tema': 30
+  });
+  const d7 = promScores([
+    autocuidado_score,
+    plantas_score,
+    norm('interes_taller_plantas'),
+    norm('interes_aromaterapia'),
+  ]);
+
+  const dimensiones = [
+    { id: 'd1', nombre: 'Bienestar percibido', score: d1, icono: '💚', descripcion: 'Cómo se siente el equipo en términos de bienestar general, satisfacción de vida y capacidad de autocuidado.' },
+    { id: 'd2', nombre: 'Energía y vitalidad', score: d2, icono: '⚡', descripcion: 'Nivel de energía durante la jornada, calidad del sueño y recuperación nocturna.' },
+    { id: 'd3', nombre: 'Alimentación y hábitos', score: d3, icono: '🥗', descripcion: 'Calidad de la alimentación, frecuencia de consumo de frutas, verduras y ultraprocesados, y condiciones para comer bien en el trabajo.' },
+    { id: 'd4', nombre: 'Movimiento y cuerpo', score: d4, icono: '🏃', descripcion: 'Frecuencia de actividad física, tiempo sedentario y facilidades del entorno para moverse.' },
+    { id: 'd5', nombre: 'Estrés y recursos', score: d5, icono: '🧘', descripcion: 'Carga laboral percibida, capacidad de desconexión y herramientas personales para manejar el estrés.' },
+    { id: 'd6', nombre: 'Entorno laboral', score: d6, icono: '🏢', descripcion: 'Clima del equipo, respeto, autonomía, carga de trabajo adecuada y cultura organizacional de bienestar.' },
+    { id: 'd7', nombre: 'Autocuidado y salud natural', score: d7, icono: '🌿', descripcion: 'Facilidad para incorporar prácticas de autocuidado, uso de plantas medicinales y apertura a herramientas naturales de bienestar.' },
+  ];
+
+  // Score global ponderado
+  const scores_validos = dimensiones.map(d => d.score).filter(s => s !== null);
+  const scoreGlobal = scores_validos.length
+    ? Math.round(scores_validos.reduce((a,b) => a+b, 0) / scores_validos.length)
+    : null;
+
+  // Brechas (score < 50) ordenadas de menor a mayor
+  const brechas = dimensiones.filter(d => d.score !== null && d.score < 50)
+    .sort((a,b) => a.score - b.score);
+
+  // Prioridades (top 3 brechas)
+  const prioridades = brechas.slice(0, 3);
+
+  return { dimensiones, scoreGlobal, brechas, prioridades };
+}
+
+function nivelScore(score) {
+  if (score === null || score === undefined) return { color: '#aaa', fondo: '#f0f0f0', texto: 'Sin datos', clase: 'gris' };
+  if (score >= 75) return { color: '#07542F', fondo: '#e8f5ee', texto: 'Fortaleza', clase: 'verde' };
+  if (score >= 50) return { color: '#a05a00', fondo: '#fef3e8', texto: 'Oportunidad de mejora', clase: 'amarillo' };
+  return { color: '#c0392b', fondo: '#fdf0ee', texto: 'Brecha prioritaria', clase: 'rojo' };
+}
+
+function renderScoring(scoring, empresa) {
+  if (!scoring) return '<div class="empty-state"><p>No hay suficientes datos para calcular el scoring.</p></div>';
+
+  const { dimensiones, scoreGlobal, brechas, prioridades } = scoring;
+  const nivelGlobal = nivelScore(scoreGlobal);
+
+  // Textos de diagnóstico por dimensión y nivel
+  const textoDx = {
+    d1: {
+      verde: 'El equipo reporta un nivel de bienestar percibido positivo. Este resultado es una fortaleza que debe sostenerse con programas que refuercen los factores ya presentes.',
+      amarillo: 'El equipo muestra una percepción de bienestar moderada. Existen oportunidades concretas para fortalecer la sensación de bienestar y las herramientas disponibles para el autocuidado.',
+      rojo: 'El equipo reporta un bienestar percibido bajo. Este hallazgo es relevante: cuando las personas no se sienten bien, los hábitos saludables se deterioran en cascada. Es un indicador que requiere atención prioritaria.',
+    },
+    d2: {
+      verde: 'El equipo mantiene buenos niveles de energía y una calidad de sueño adecuada. Estos factores protegen la productividad y el bienestar metabólico.',
+      amarillo: 'Se detectan señales de fatiga moderada y sueño no completamente reparador. La energía durante la jornada puede verse comprometida, afectando el rendimiento y los hábitos saludables.',
+      rojo: 'El equipo presenta niveles de energía bajos y calidad de sueño deteriorada. La fatiga crónica tiene consecuencias directas sobre la alimentación, el estrés y la salud metabólica. Requiere intervención prioritaria.',
+    },
+    d3: {
+      verde: 'El equipo muestra hábitos alimentarios relativamente saludables. El contexto laboral facilita una alimentación adecuada.',
+      amarillo: 'Se detectan oportunidades de mejora en los hábitos alimentarios. El consumo de ultraprocesados o el acceso limitado a opciones saludables durante la jornada son factores a intervenir.',
+      rojo: 'Los hábitos alimentarios del equipo presentan brechas significativas. El consumo frecuente de ultraprocesados, el bajo consumo de frutas y verduras y las condiciones desfavorables de la jornada configuran un perfil que requiere intervención directa.',
+    },
+    d4: {
+      verde: 'El equipo mantiene niveles de actividad física adecuados y el sedentarismo durante la jornada está bajo control.',
+      amarillo: 'Se detecta sedentarismo moderado y niveles de actividad física insuficientes. Sin intervención, esta tendencia puede consolidarse como factor de riesgo metabólico.',
+      rojo: 'El equipo presenta altos niveles de sedentarismo y baja actividad física. Este hallazgo, combinado con los indicadores clínicos, es uno de los factores de riesgo más modificables y con mayor impacto en la salud del equipo.',
+    },
+    d5: {
+      verde: 'El equipo muestra una capacidad adecuada para manejar el estrés laboral y cuenta con recursos personales para enfrentar la carga de trabajo.',
+      amarillo: 'Se detectan señales de estrés moderado y dificultades parciales para desconectarse del trabajo. Esta dimensión merece atención antes de que el patrón se consolide.',
+      rojo: 'El equipo reporta altos niveles de estrés laboral, dificultad para desconectarse y recursos insuficientes para manejar la carga. El estrés crónico amplifica el impacto de todas las otras brechas identificadas.',
+    },
+    d6: {
+      verde: 'El entorno laboral es percibido como positivo, con buen clima de equipo, respeto y condiciones que facilitan el bienestar.',
+      amarillo: 'El entorno laboral presenta áreas de mejora. Factores como la carga de trabajo, la autonomía o la cultura de bienestar pueden estar dificultando el desarrollo de hábitos saludables.',
+      rojo: 'El entorno laboral presenta condiciones que dificultan el bienestar del equipo. Cuando el ambiente organizacional no acompaña, cualquier intervención individual tiene impacto limitado. Este es un factor estructural que debe abordarse.',
+    },
+    d7: {
+      verde: 'El equipo muestra apertura y prácticas de autocuidado. Existe receptividad a herramientas naturales de bienestar como fitoterapia y aromaterapia.',
+      amarillo: 'Hay interés moderado en el autocuidado, pero barreras para incorporarlo en la vida cotidiana. Las actividades prácticas y accesibles tienen alto potencial de impacto en este equipo.',
+      rojo: 'El equipo reporta dificultades para incorporar prácticas de autocuidado. Este hallazgo sugiere que las intervenciones deben ser especialmente accesibles, concretas y con bajo umbral de entrada.',
+    },
+  };
+
+  const recomendacionesPorDimension = {
+    d1: { titulo: 'Programa de bienestar integral', desc: 'Intervención multidimensional que aborde el bienestar desde una perspectiva amplia. Talleres experienciales con microacciones autoelegidas. El Método Nútrete® es la aproximación indicada.' },
+    d2: { titulo: 'Taller de energía, sueño y vitalidad', desc: 'Intervención práctica sobre hábitos de sueño, alimentación para la energía y estrategias de recuperación. Incluir aromaterapia para el descanso y fitoterapia adaptógena.' },
+    d3: { titulo: 'Programa de alimentación saludable en el trabajo', desc: 'Talleres de nutrición práctica, colaciones saludables y estrategias concretas para mejorar la alimentación durante la jornada. Revisión del entorno alimentario (casino, acceso a opciones saludables).' },
+    d4: { titulo: 'Programa de activación física y reducción del sedentarismo', desc: 'Pausas activas estructuradas, orientación sobre actividad física accesible y estrategias para incorporar movimiento en la jornada laboral.' },
+    d5: { titulo: 'Taller de manejo del estrés y autorregulación', desc: 'Técnicas de respiración, manejo de la carga laboral, aromaterapia clínica para el estrés y estrategias de desconexión. Incluir fitoterapia adaptógena.' },
+    d6: { titulo: 'Diagnóstico y mejora del entorno laboral', desc: 'Análisis del entorno organizacional y propuestas concretas para facilitar el bienestar. Incluye revisión de pausas, acceso a agua, espacios y cultura de bienestar.' },
+    d7: { titulo: 'Taller de autocuidado y bienestar natural', desc: 'Experiencia práctica de fitoterapia y aromaterapia. Herramientas naturales accesibles para incorporar en la vida cotidiana. Alto impacto con bajo costo de entrada.' },
+  };
+
+  // Render dimensiones
+  const renderDimensiones = dimensiones.map(d => {
+    const nivel = nivelScore(d.score);
+    const dx = d.score !== null ? textoDx[d.id]?.[nivel.clase] || '' : '';
+    return `
+      <div style="background:white;border-radius:10px;border:1px solid var(--gris-borde);padding:18px 20px;margin-bottom:12px;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
+          <div style="font-size:22px;">${d.icono}</div>
+          <div style="flex:1;">
+            <div style="font-size:14px;font-weight:700;color:var(--texto);">${d.nombre}</div>
+            <div style="font-size:12px;color:var(--texto-suave);">${d.descripcion}</div>
+          </div>
+          <div style="text-align:right;flex-shrink:0;">
+            <div style="font-size:28px;font-weight:800;color:${nivel.color};">${d.score !== null ? d.score : '—'}</div>
+            <div style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:${nivel.fondo};color:${nivel.color};">${nivel.texto}</div>
+          </div>
+        </div>
+        <div style="height:8px;background:#f0f0f0;border-radius:4px;overflow:hidden;margin-bottom:10px;">
+          <div style="width:${d.score || 0}%;height:100%;background:${nivel.color};border-radius:4px;transition:width 0.8s;"></div>
+        </div>
+        ${dx ? `<p style="font-size:13px;color:var(--texto-suave);line-height:1.65;margin:0;">${dx}</p>` : ''}
+      </div>`;
+  }).join('');
+
+  // Render brechas y prioridades
+  const renderPrioridades = prioridades.length ? `
+    <div style="background:#fdf0ee;border:1px solid #f5c6c0;border-radius:10px;padding:20px;margin-bottom:20px;">
+      <div style="font-size:13px;font-weight:700;color:#c0392b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">⚠ Brechas prioritarias — Intervención recomendada</div>
+      ${prioridades.map((d, i) => {
+        const rec = recomendacionesPorDimension[d.id];
+        return `<div style="display:flex;gap:12px;padding:12px 0;border-bottom:1px solid #f5c6c0;${i===prioridades.length-1?'border-bottom:none;':''}">
+          <div style="font-size:20px;flex-shrink:0;">${d.icono}</div>
+          <div>
+            <div style="font-size:14px;font-weight:700;color:#c0392b;margin-bottom:2px;">${d.nombre} — Score: ${d.score}/100</div>
+            ${rec ? `<div style="font-size:13px;font-weight:600;color:var(--texto);margin-bottom:2px;">→ ${rec.titulo}</div>
+            <div style="font-size:13px;color:var(--texto-suave);">${rec.desc}</div>` : ''}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>` : `
+    <div style="background:#e8f5ee;border:1px solid #c8ebd5;border-radius:10px;padding:16px 20px;margin-bottom:20px;">
+      <div style="font-size:14px;font-weight:700;color:#07542F;">✓ Sin brechas críticas detectadas</div>
+      <p style="font-size:13px;color:var(--texto-suave);margin:6px 0 0;">El equipo no presenta dimensiones bajo 50 puntos. Se recomienda un programa de mantenimiento y consolidación de hábitos.</p>
+    </div>`;
+
+  return `
+    <!-- Score global -->
+    <div style="background:var(--verde-oscuro);border-radius:12px;padding:28px;margin-bottom:20px;display:flex;align-items:center;gap:24px;flex-wrap:wrap;">
+      <div style="text-align:center;min-width:100px;">
+        <div style="font-size:56px;font-weight:800;color:white;line-height:1;">${scoreGlobal ?? '—'}</div>
+        <div style="font-size:12px;color:#a8d5b8;margin-top:4px;">Score global / 100</div>
+      </div>
+      <div style="flex:1;min-width:200px;">
+        <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#7fc89a;margin-bottom:6px;">Motor Nútrete® · Diagnóstico de Bienestar</div>
+        <div style="font-size:18px;font-weight:700;color:white;margin-bottom:8px;">${empresa}</div>
+        <div style="height:8px;background:rgba(255,255,255,0.2);border-radius:4px;overflow:hidden;">
+          <div style="width:${scoreGlobal || 0}%;height:100%;background:${nivelGlobal.color === '#07542F' ? '#7fc89a' : nivelGlobal.color};border-radius:4px;"></div>
+        </div>
+        <div style="display:flex;gap:16px;margin-top:8px;font-size:11px;color:#a8d5b8;">
+          <span>● 75–100: Fortaleza</span>
+          <span>● 50–74: Oportunidad</span>
+          <span>● 0–49: Brecha</span>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;min-width:160px;">
+        <div style="background:rgba(255,255,255,0.12);border-radius:8px;padding:10px;text-align:center;">
+          <div style="font-size:22px;font-weight:800;color:white;">${dimensiones.filter(d=>d.score>=75).length}</div>
+          <div style="font-size:10px;color:#7fc89a;">Fortalezas</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.12);border-radius:8px;padding:10px;text-align:center;">
+          <div style="font-size:22px;font-weight:800;color:white;">${brechas.length}</div>
+          <div style="font-size:10px;color:#f5a89a;">Brechas</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Prioridades -->
+    ${renderPrioridades}
+
+    <!-- 7 Dimensiones -->
+    <div style="font-size:12px;font-weight:700;color:var(--verde-oscuro);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid var(--gris-borde);">Las 7 dimensiones Nútrete</div>
+    ${renderDimensiones}
+  `;
 }
 
 // ══════════════════════════════════════════════
