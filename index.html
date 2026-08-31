@@ -1570,64 +1570,267 @@ function mostrarResultadosColaboradores(respuestas) {
   const cont = document.getElementById('graficos-colaboradores');
   document.getElementById('resultados-colaboradores').style.display = 'block';
 
-  const prom = (key) => {
-    const vals = respuestas.map(r => r[key]).filter(v => v !== null && v !== undefined);
+  // Extraer datos desde el JSON autopercepcion_salud
+  const datos = respuestas.map(r => {
+    try { return JSON.parse(r.autopercepcion_salud || '{}'); } catch(e) { return {}; }
+  });
+
+  const pct = (count) => n ? Math.round(count/n*100) : 0;
+
+  // Promedio de campo numérico
+  const promCampo = (key) => {
+    const vals = datos.map(d => d[key]).filter(v => v !== null && v !== undefined && !isNaN(v));
     return vals.length ? (vals.reduce((a,b) => a+b, 0) / vals.length).toFixed(1) : '—';
   };
 
-  const contarOpcion = (key, opcion) => respuestas.filter(r => r[key] === opcion).length;
-  const pct = (count) => n ? Math.round(count/n*100) : 0;
+  // Contar respuestas de opción múltiple
+  const contarOpcion = (key, opcion) => datos.filter(d => d[key] === opcion).length;
 
+  // Contar checkboxes
+  const contarCheck = (key, valor) => datos.filter(d => Array.isArray(d[key]) && d[key].includes(valor)).length;
+
+  // Barra horizontal
   const barra = (label, count, color='#009444') => `
     <div style="margin-bottom:10px;">
       <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;">
-        <span>${label}</span><span style="font-weight:700;">${count} (${pct(count)}%)</span>
+        <span>${label}</span><span style="font-weight:700;color:var(--texto-suave);">${count} (${pct(count)}%)</span>
       </div>
-      <div style="height:20px;background:#f0f0f0;border-radius:4px;overflow:hidden;">
+      <div style="height:18px;background:#f0f0f0;border-radius:4px;overflow:hidden;">
         <div style="width:${pct(count)}%;height:100%;background:${color};border-radius:4px;transition:width 0.5s;"></div>
       </div>
     </div>`;
 
+  // Barra de escala Likert 1-5
+  const barrasLikert = (key, coloresInvertidos=false) => [1,2,3,4,5].map(nivel => {
+    const count = datos.filter(d => d[key] === nivel).length;
+    const color = coloresInvertidos
+      ? (nivel <= 2 ? '#009444' : nivel === 3 ? '#e67e22' : '#c0392b')
+      : (nivel >= 4 ? '#009444' : nivel === 3 ? '#e67e22' : '#c0392b');
+    return barra(`Nivel ${nivel}`, count, color);
+  }).join('');
+
+  // KPI card
+  const kpi = (valor, label, colorFn) => {
+    const v = parseFloat(valor);
+    const color = isNaN(v) ? 'var(--verde)' : colorFn(v);
+    return `<div class="stat-card"><div class="stat-numero" style="color:${color};">${valor}</div><div class="stat-label">${label}</div></div>`;
+  };
+
+  // Sección título
+  const seccion = (titulo) => `<div style="font-size:12px;font-weight:700;color:var(--verde-oscuro);text-transform:uppercase;letter-spacing:0.5px;margin:24px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--gris-borde);">${titulo}</div>`;
+
   cont.innerHTML = `
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:28px;">
-      <div class="stat-card"><div class="stat-numero">${n}</div><div class="stat-label">Respuestas recibidas</div></div>
-      <div class="stat-card"><div class="stat-numero">${prom('nivel_estres')}</div><div class="stat-label">Estrés promedio (1–5)</div></div>
-      <div class="stat-card"><div class="stat-numero">${prom('bienestar_general')}</div><div class="stat-label">Bienestar promedio (1–5)</div></div>
-      <div class="stat-card"><div class="stat-numero">${prom('calidad_alimentacion_percibida')}</div><div class="stat-label">Alimentación percibida (1–5)</div></div>
+
+    <!-- KPIs -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:24px;">
+      ${kpi(n, 'Respuestas recibidas', () => 'var(--verde)')}
+      ${kpi(promCampo('bienestar_general'), 'Bienestar general (1–5)', v => v>=4?'#009444':v>=3?'#e67e22':'#c0392b')}
+      ${kpi(promCampo('carga_laboral'), 'Carga laboral percibida (1–5)', v => v<=2?'#009444':v<=3?'#e67e22':'#c0392b')}
+      ${kpi(promCampo('nivel_energia'), 'Nivel de energía (1–5)', v => v>=4?'#009444':v>=3?'#e67e22':'#c0392b')}
+      ${kpi(promCampo('calidad_sueno'), 'Calidad del sueño (1–5)', v => v>=4?'#009444':v>=3?'#e67e22':'#c0392b')}
+      ${kpi(promCampo('calidad_alimentacion'), 'Calidad alimentaria (1–5)', v => v>=4?'#009444':v>=3?'#e67e22':'#c0392b')}
     </div>
 
-    <div style="font-size:13px;font-weight:700;color:var(--verde-oscuro);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">Estrés percibido</div>
-    ${[1,2,3,4,5].map(n => barra(`Nivel ${n}`, contarOpcion('nivel_estres', n), n<=2?'#009444':n===3?'#e67e22':'#c0392b')).join('')}
+    <!-- S1: DISTRIBUCIÓN DEL GRUPO -->
+    ${seccion('Sección 1 — Distribución del grupo')}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:8px;">
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--texto-suave);margin-bottom:8px;">Área / Departamento</div>
+        ${['Administración','Operaciones','Producción','Comercial','Recursos Humanos / Personas','Finanzas','Tecnología','Logística','Otra'].map(o => barra(o, contarOpcion('area_dept', o))).join('')}
+      </div>
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--texto-suave);margin-bottom:8px;">Rango etario</div>
+        ${['Menos de 25 años','25–34 años','35–44 años','45–54 años','55–64 años','65 años o más'].map(o => barra(o, contarOpcion('rango_edad', o))).join('')}
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:8px;">
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--texto-suave);margin-bottom:8px;">Modalidad de trabajo</div>
+        ${['Presencial','Híbrida','Remota','Trabajo en terreno','Otra'].map(o => barra(o, contarOpcion('modalidad_trabajo', o))).join('')}
+      </div>
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--texto-suave);margin-bottom:8px;">Antigüedad</div>
+        ${['Menos de 1 año','1–3 años','4–6 años','7–10 años','Más de 10 años'].map(o => barra(o, contarOpcion('antiguedad', o))).join('')}
+      </div>
+    </div>
 
-    <div style="font-size:13px;font-weight:700;color:var(--verde-oscuro);text-transform:uppercase;letter-spacing:0.5px;margin:20px 0 12px;">Bienestar general</div>
-    ${[1,2,3,4,5].map(n => barra(`Nivel ${n}`, contarOpcion('bienestar_general', n), n>=4?'#009444':n===3?'#e67e22':'#c0392b')).join('')}
+    <!-- S2: BIENESTAR GENERAL -->
+    ${seccion('Sección 2 — Bienestar general')}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--texto-suave);margin-bottom:8px;">Bienestar general <span style="font-weight:400;">(promedio: ${promCampo('bienestar_general')})</span></div>
+        ${barrasLikert('bienestar_general')}
+      </div>
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--texto-suave);margin-bottom:8px;">Satisfacción con calidad de vida <span style="font-weight:400;">(${promCampo('satisfaccion_vida')})</span></div>
+        ${barrasLikert('satisfaccion_vida')}
+      </div>
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--texto-suave);margin-bottom:8px;">Herramientas para el bienestar <span style="font-weight:400;">(${promCampo('herramientas_bienestar')})</span></div>
+        ${barrasLikert('herramientas_bienestar')}
+      </div>
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--texto-suave);margin-bottom:8px;">Prioridad de mejorar bienestar <span style="font-weight:400;">(${promCampo('prioridad_bienestar')})</span></div>
+        ${barrasLikert('prioridad_bienestar')}
+      </div>
+    </div>
 
-    <div style="font-size:13px;font-weight:700;color:var(--verde-oscuro);text-transform:uppercase;letter-spacing:0.5px;margin:20px 0 12px;">Frecuencia de desayuno</div>
-    ${['Todos los días','Casi siempre','A veces','Casi nunca','Nunca'].map(o => barra(o, contarOpcion('frecuencia_desayuno', o))).join('')}
+    <!-- S3: ALIMENTACIÓN -->
+    ${seccion('Sección 3 — Alimentación')}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--texto-suave);margin-bottom:8px;">Calidad de alimentación percibida <span style="font-weight:400;">(${promCampo('calidad_alimentacion')})</span></div>
+        ${barrasLikert('calidad_alimentacion')}
+      </div>
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--texto-suave);margin-bottom:8px;">Consumo de frutas y verduras</div>
+        ${['Todos los días','5–6 días a la semana','3–4 días a la semana','1–2 días a la semana','Casi nunca'].map(o => barra(o, contarOpcion('frutas_verduras', o))).join('')}
+      </div>
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--texto-suave);margin-bottom:8px;">Consumo de ultraprocesados</div>
+        ${['Todos los días','5–6 días a la semana','3–4 días a la semana','1–2 días a la semana','Casi nunca'].map((o,i) => barra(o, contarOpcion('ultraprocesados', o), i<=1?'#c0392b':i===2?'#e67e22':'#009444')).join('')}
+      </div>
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--texto-suave);margin-bottom:8px;">Acceso a alimentación saludable en jornada <span style="font-weight:400;">(${promCampo('acceso_saludable')})</span></div>
+        ${barrasLikert('acceso_saludable')}
+      </div>
+    </div>
 
-    <div style="font-size:13px;font-weight:700;color:var(--verde-oscuro);text-transform:uppercase;letter-spacing:0.5px;margin:20px 0 12px;">Actividad física</div>
-    ${['Todos los días','3-4 veces por semana','1-2 veces por semana','Casi nunca','Nunca'].map(o => barra(o, contarOpcion('actividad_fisica_frecuencia', o))).join('')}
+    <!-- S4: ACTIVIDAD FÍSICA -->
+    ${seccion('Sección 4 — Movimiento y actividad física')}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--texto-suave);margin-bottom:8px;">Días de actividad física por semana</div>
+        ${['0 días','1–2 días','3–4 días','5–6 días','7 días'].map((o,i) => barra(o, contarOpcion('dias_actividad', o), i===0?'#c0392b':i===1?'#e67e22':'#009444')).join('')}
+      </div>
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--texto-suave);margin-bottom:8px;">Tiempo sedentario en jornada</div>
+        ${['Menos de 2 horas','2–4 horas','4–6 horas','6–8 horas','Más de 8 horas','No aplica a mi trabajo'].map((o,i) => barra(o, contarOpcion('tiempo_sedentario', o), i<=1?'#009444':i===2?'#e67e22':'#c0392b')).join('')}
+      </div>
+    </div>
 
-    <div style="font-size:13px;font-weight:700;color:var(--verde-oscuro);text-transform:uppercase;letter-spacing:0.5px;margin:20px 0 12px;">Horas de sueño</div>
-    ${[4.5,5.5,7.5,8.5].map((v,i) => barra(['Menos de 5h','5-6h','7-8h','Más de 8h'][i], respuestas.filter(r=>r.horas_sueno===v).length)).join('')}
+    <!-- S5: SUEÑO -->
+    ${seccion('Sección 5 — Sueño y recuperación')}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--texto-suave);margin-bottom:8px;">Horas de sueño por noche</div>
+        ${['Menos de 5 horas','5–6 horas','6–7 horas','7–8 horas','Más de 8 horas'].map((o,i) => barra(o, contarOpcion('horas_sueno', o), i<=1?'#c0392b':i===2?'#e67e22':'#009444')).join('')}
+      </div>
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--texto-suave);margin-bottom:8px;">Calidad del sueño <span style="font-weight:400;">(${promCampo('calidad_sueno')})</span></div>
+        ${barrasLikert('calidad_sueno')}
+      </div>
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--texto-suave);margin-bottom:8px;">Frecuencia de despertar descansado/a <span style="font-weight:400;">(${promCampo('descansado_amanecer')})</span></div>
+        ${barrasLikert('descansado_amanecer')}
+      </div>
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--texto-suave);margin-bottom:8px;">El trabajo afecta el descanso <span style="font-weight:400;">(${promCampo('trabajo_afecta_sueno')})</span></div>
+        ${barrasLikert('trabajo_afecta_sueno', true)}
+      </div>
+    </div>
 
-    <div style="font-size:13px;font-weight:700;color:var(--verde-oscuro);text-transform:uppercase;letter-spacing:0.5px;margin:20px 0 12px;">Calidad de alimentación percibida</div>
-    ${[1,2,3,4,5].map(n => barra(`Nivel ${n}`, contarOpcion('calidad_alimentacion_percibida', n), n>=4?'#009444':n===3?'#e67e22':'#c0392b')).join('')}
+    <!-- S6: ENERGÍA -->
+    ${seccion('Sección 6 — Energía y vitalidad')}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--texto-suave);margin-bottom:8px;">Nivel de energía en jornada <span style="font-weight:400;">(${promCampo('nivel_energia')})</span></div>
+        ${barrasLikert('nivel_energia')}
+      </div>
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--texto-suave);margin-bottom:8px;">Frecuencia de cansancio en jornada <span style="font-weight:400;">(${promCampo('cansancio_jornada')})</span></div>
+        ${barrasLikert('cansancio_jornada', true)}
+      </div>
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--texto-suave);margin-bottom:8px;">Momento de mayor baja de energía</div>
+        ${['Al comenzar la jornada','Durante la mañana','Después del almuerzo','Durante la tarde','Al finalizar la jornada','No noto una disminución importante'].map(o => barra(o, contarOpcion('momento_baja_energia', o))).join('')}
+      </div>
+    </div>
 
-    <div style="font-size:13px;font-weight:700;color:var(--verde-oscuro);text-transform:uppercase;letter-spacing:0.5px;margin:20px 0 12px;">Autopercepción de salud</div>
-    ${['Muy bueno','Bueno','Regular','Malo'].map(o => barra(o, contarOpcion('autopercepcion_salud', o))).join('')}
+    <!-- S7: ESTRÉS -->
+    ${seccion('Sección 7 — Estrés y recursos personales')}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--texto-suave);margin-bottom:8px;">Carga laboral difícil de manejar <span style="font-weight:400;">(${promCampo('carga_laboral')})</span></div>
+        ${barrasLikert('carga_laboral', true)}
+      </div>
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--texto-suave);margin-bottom:8px;">Dificultad para desconectarse <span style="font-weight:400;">(${promCampo('desconexion_trabajo')})</span></div>
+        ${barrasLikert('desconexion_trabajo', true)}
+      </div>
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--texto-suave);margin-bottom:8px;">Herramientas para manejar el estrés <span style="font-weight:400;">(${promCampo('herramientas_estres')})</span></div>
+        ${barrasLikert('herramientas_estres')}
+      </div>
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--texto-suave);margin-bottom:8px;">Apoyo ante situaciones difíciles <span style="font-weight:400;">(${promCampo('apoyo_laboral')})</span></div>
+        ${barrasLikert('apoyo_laboral')}
+      </div>
+    </div>
+    <div style="margin-top:16px;">
+      <div style="font-size:12px;font-weight:600;color:var(--texto-suave);margin-bottom:8px;">Estrategias actuales para el estrés</div>
+      ${[['actividad_fis','Actividad física'],['dormir','Dormir o descansar'],['alimentacion_est','Alimentación'],['respiracion','Respiración / meditación'],['familia_amigos','Familia o amigos'],['naturaleza','Naturaleza / aire libre'],['plantas','Plantas medicinales'],['aromaterapia_est','Aromaterapia'],['psicoterapia','Psicoterapia'],['hobbies','Hobbies'],['ninguna_est','Ninguna actualmente']].map(([val, label]) => barra(label, contarCheck('estrategias_estres', val))).join('')}
+    </div>
 
-    <div style="font-size:13px;font-weight:700;color:var(--verde-oscuro);text-transform:uppercase;letter-spacing:0.5px;margin:20px 0 12px;">Intereses declarados</div>
-    ${[
-      ['interes_aromaterapia','Aromaterapia y plantas medicinales'],
-      ['interes_fitoterapia','Fitoterapia y hierbas'],
-      ['interes_checkup','Check-up Nútrete (bioimpedancia)'],
-      ['interes_talleres','Talleres de alimentación saludable'],
-    ].map(([key, label]) => barra(label, respuestas.filter(r=>r[key]===true).length)).join('')}
+    <!-- S8: ENTORNO LABORAL -->
+    ${seccion('Sección 8 — Entorno laboral')}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+      ${[['ambiente_laboral','Ambiente laboral',false],['opiniones_escuchadas','Opiniones escuchadas',false],['respeto_laboral','Respeto en el trabajo',false],['carga_adecuada','Carga de trabajo adecuada',false],['autonomia_trabajo','Autonomía en el trabajo',false],['trabajo_facilita_habitos','El trabajo facilita hábitos saludables',false],['cultura_bienestar','Cultura de bienestar presente',false]].map(([key, label, inv]) => `
+        <div>
+          <div style="font-size:12px;font-weight:600;color:var(--texto-suave);margin-bottom:8px;">${label} <span style="font-weight:400;">(${promCampo(key)})</span></div>
+          ${barrasLikert(key, inv)}
+        </div>`).join('')}
+    </div>
 
-    <div style="font-size:13px;font-weight:700;color:var(--verde-oscuro);text-transform:uppercase;letter-spacing:0.5px;margin:20px 0 12px;">Disposición al Check-up</div>
-    ${barra('Sí, me interesa', respuestas.filter(r=>r.disposicion_checkup===true).length, '#009444')}
-    ${barra('No o tal vez', respuestas.filter(r=>r.disposicion_checkup===false).length, '#e67e22')}
+    <!-- S9: AUTOCUIDADO -->
+    ${seccion('Sección 9 — Autocuidado')}
+    <div>
+      <div style="font-size:12px;font-weight:600;color:var(--texto-suave);margin-bottom:8px;">Áreas que el equipo quiere fortalecer</div>
+      ${[['alim_fort','Alimentación'],['sueno_fort','Sueño'],['energia_fort','Energía'],['actividad_fort','Actividad física'],['digestiva','Salud digestiva'],['estres_fort','Manejo del estrés'],['cardiovascular_fort','Salud cardiovascular'],['piel','Salud de la piel'],['metabolica','Salud metabólica'],['hormonal','Salud hormonal'],['autocuidado_fort','Autocuidado']].map(([val, label]) => barra(label, contarCheck('areas_fortalecer', val))).join('')}
+    </div>
+
+    <!-- S10: FITOTERAPIA -->
+    ${seccion('Sección 10 — Fitoterapia y bienestar natural')}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--texto-suave);margin-bottom:8px;">Uso actual de plantas medicinales</div>
+        ${['Sí, frecuentemente','Sí, ocasionalmente','Lo he utilizado alguna vez','No','No sé suficiente sobre el tema'].map(o => barra(o, contarOpcion('uso_plantas', o))).join('')}
+      </div>
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--texto-suave);margin-bottom:8px;">Interés en taller de plantas medicinales <span style="font-weight:400;">(${promCampo('interes_taller_plantas')})</span></div>
+        ${barrasLikert('interes_taller_plantas')}
+        <div style="font-size:12px;font-weight:600;color:var(--texto-suave);margin:12px 0 8px;">Interés en experiencia de aromaterapia <span style="font-weight:400;">(${promCampo('interes_aromaterapia')})</span></div>
+        ${barrasLikert('interes_aromaterapia')}
+      </div>
+    </div>
+
+    <!-- S11: PRIORIDADES -->
+    ${seccion('Sección 11 — Prioridades del equipo')}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--texto-suave);margin-bottom:8px;">Temas prioritarios de apoyo</div>
+        ${[['alimentacion_pr','🥗 Alimentación saludable'],['energia_pr','⚡ Energía y fatiga'],['sueno_pr','😴 Sueño y descanso'],['estres_pr','🧘 Manejo del estrés'],['actividad_pr','🚶 Actividad física'],['plantas_pr','🌿 Plantas medicinales'],['aromaterapia_pr','🌸 Aromaterapia'],['salud_mental_pr','🧠 Salud mental'],['cardiovascular_pr','🫀 Prevención cardiovascular'],['equilibrio_pr','⚖️ Equilibrio vida-trabajo'],['hidratacion_pr','💧 Hidratación'],['digestiva_pr','🥦 Salud digestiva']].map(([val, label]) => barra(label, contarCheck('temas_apoyo', val))).join('')}
+      </div>
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--texto-suave);margin-bottom:8px;">Formatos preferidos</div>
+        ${[['charlas','Charlas breves'],['talleres_prac','Talleres prácticos'],['webinars','Webinars'],['presencial','Actividades presenciales'],['desafios','Desafíos de bienestar'],['material','Material educativo'],['autocuidado_fmt','Actividades de autocuidado'],['evaluaciones_fmt','Evaluaciones individuales'],['programa_continuo','Programas de varias semanas']].map(([val, label]) => barra(label, contarCheck('formato_preferido', val))).join('')}
+        <div style="font-size:12px;font-weight:600;color:var(--texto-suave);margin:12px 0 8px;">Frecuencia deseada</div>
+        ${['Una actividad puntual','1 vez al mes','2 veces al mes','1 vez por semana','Me gustaría participar en un programa continuo'].map(o => barra(o, contarOpcion('frecuencia_participacion', o))).join('')}
+      </div>
+    </div>
+
+    <!-- S12: RESPUESTAS ABIERTAS -->
+    ${datos.some(d => d.abierta_bienestar_jornada || d.abierta_cambio_entorno || d.abierta_temas_adicionales) ? `
+    ${seccion('Sección 12 — Respuestas abiertas')}
+    ${['abierta_bienestar_jornada','abierta_cambio_entorno','abierta_temas_adicionales'].map((key, i) => {
+      const respAbiertas = datos.map(d => d[key]).filter(Boolean);
+      const titulos = ['¿Qué afecta más tu bienestar durante la jornada?','¿Qué cambiarías de tu entorno laboral?','¿Qué tema adicional te gustaría que la empresa abordara?'];
+      return respAbiertas.length ? `
+        <div style="margin-bottom:16px;">
+          <div style="font-size:12px;font-weight:600;color:var(--texto-suave);margin-bottom:8px;">${titulos[i]}</div>
+          ${respAbiertas.map(r => `<div style="background:var(--gris-claro);border-left:3px solid var(--verde);padding:8px 12px;border-radius:0 6px 6px 0;font-size:13px;color:var(--texto);margin-bottom:6px;">${r}</div>`).join('')}
+        </div>` : '';
+    }).join('')}` : ''}
   `;
 }
 
@@ -2029,76 +2232,350 @@ function verEvaluacionesDeEmpresa(empresaId) {
   cambiarTab('evaluaciones');
 }
 
+// ══════════════════════════════════════════════
+// INFORME DIAGNÓSTICO AUTOMÁTICO
+// ══════════════════════════════════════════════
 async function generarInforme() {
   const evalId = document.getElementById('informe-evaluacion').value;
   const cont = document.getElementById('informe-contenido');
   if (!evalId) { cont.style.display = 'none'; return; }
 
   cont.style.display = 'block';
-  cont.innerHTML = '<div class="loading"><div class="spinner"></div>Generando informe...</div>';
+  cont.innerHTML = '<div class="loading"><div class="spinner"></div>Generando diagnóstico...</div>';
 
+  // Cargar evaluación + empresa
+  const { data: evaluacion } = await sb.from('evaluaciones')
+    .select('*, empresa:empresa_id(nombre)')
+    .eq('id', evalId).single();
+
+  // Cargar colaboradores con resultados check-up
   const { data: cols } = await sb.from('colaboradores')
     .select('*, resultados_checkup(*)')
     .eq('evaluacion_id', evalId);
+
+  // Cargar respuestas de encuesta asociadas a esta evaluación
+  const { data: encuestas } = await sb.from('encuestas')
+    .select('id, tipo')
+    .eq('evaluacion_id', evalId)
+    .eq('tipo', 'colaborador');
+
+  let respuestasEncuesta = [];
+  if (encuestas && encuestas.length) {
+    const encIds = encuestas.map(e => e.id);
+    const { data: resp } = await sb.from('respuestas_encuesta')
+      .select('*')
+      .in('encuesta_id', encIds);
+    respuestasEncuesta = resp || [];
+  }
 
   if (!cols || !cols.length) {
     cont.innerHTML = '<div class="card"><div class="empty-state"><p>No hay colaboradores evaluados en esta sesión aún.</p></div></div>';
     return;
   }
 
-  const resultados = cols.map(c => c.resultados_checkup?.[0]).filter(Boolean);
+  const resultados = cols.map(c => ({ ...c.resultados_checkup?.[0], area: c.area })).filter(r => r.colaborador_id);
   const n = resultados.length;
+  const nEnc = respuestasEncuesta.length;
+  const empresa = evaluacion?.empresa?.nombre || 'Empresa';
+  const fecha = formatFecha(evaluacion?.fecha);
 
-  const prom = (key) => {
-    const vals = resultados.map(r => r[key]).filter(v => v !== null && v !== undefined);
-    return vals.length ? (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1) : '—';
+  // ── FUNCIONES AUXILIARES ──
+  const prom = (arr, key) => {
+    const vals = arr.map(r => r[key]).filter(v => v !== null && v !== undefined && !isNaN(v));
+    return vals.length ? (vals.reduce((a,b) => a+b, 0) / vals.length) : null;
+  };
+  const pct = (count, total) => total ? Math.round(count/total*100) : 0;
+  const semPct = (arr, key, val) => pct(arr.filter(r => r[key] === val).length, arr.length);
+  const encPct = (arr, key, val) => pct(arr.filter(r => r[key] === val).length, arr.length);
+  const encPromLikert = (arr, key) => {
+    const vals = arr.map(r => r[key]).filter(v => v !== null && v !== undefined);
+    return vals.length ? (vals.reduce((a,b) => a+b, 0) / vals.length).toFixed(1) : null;
   };
 
-  const semCount = (key, val) => resultados.filter(r => r[key] === val).length;
+  // ── ÁREAS / DEPARTAMENTOS ──
+  const areas = [...new Set(resultados.map(r => r.area).filter(Boolean))];
 
-  cont.innerHTML = `
-    <div class="card">
-      <div class="card-titulo">Resumen ejecutivo — ${n} colaboradores evaluados</div>
-      <div class="stats-grid">
-        <div class="stat-card"><div class="stat-numero">${n}</div><div class="stat-label">Colaboradores evaluados</div></div>
-        <div class="stat-card"><div class="stat-numero">${prom('imc')}</div><div class="stat-label">IMC promedio</div></div>
-        <div class="stat-card"><div class="stat-numero">${prom('masa_grasa_pct')}%</div><div class="stat-label">Grasa corporal promedio</div></div>
-        <div class="stat-card"><div class="stat-numero">${prom('glicemia_capilar')}</div><div class="stat-label">Glicemia promedio (mg/dL)</div></div>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-titulo">Distribución por semáforo</div>
-      ${generarFilaSemaforo('IMC', semCount('semaforo_imc','verde'), semCount('semaforo_imc','amarillo'), semCount('semaforo_imc','rojo'), n)}
-      ${generarFilaSemaforo('Grasa corporal', semCount('semaforo_grasa_pct','verde'), semCount('semaforo_grasa_pct','amarillo'), semCount('semaforo_grasa_pct','rojo'), n)}
-      ${generarFilaSemaforo('Presión arterial', semCount('semaforo_presion','verde'), semCount('semaforo_presion','amarillo'), semCount('semaforo_presion','rojo'), n)}
-      ${generarFilaSemaforo('Glicemia capilar', semCount('semaforo_glicemia','verde'), semCount('semaforo_glicemia','amarillo'), semCount('semaforo_glicemia','rojo'), n)}
-    </div>
-    <div class="card" style="text-align:center; padding:32px;">
-      <div style="color:var(--verde-oscuro); font-weight:700; margin-bottom:8px;">¿Qué sigue?</div>
-      <p style="color:var(--texto-suave); font-size:14px; margin-bottom:20px;">Los resultados muestran oportunidades concretas de mejora. El programa <strong>Cultivo de Hábitos</strong> (3 meses) es el paso natural.</p>
-      <button class="btn btn-verde" onclick="window.print()">Imprimir informe</button>
-    </div>
-  `;
-}
+  // ── TEXTOS INTERPRETATIVOS POR UMBRAL ──
+  const diagnosticoGrasa = (pctAlto) => {
+    if (pctAlto >= 60) return { nivel: 'rojo', texto: `El ${pctAlto}% del equipo presenta masa grasa elevada. Este hallazgo es de alta relevancia clínica e indica un patrón de adiposidad que aumenta significativamente el riesgo de enfermedades metabólicas, cardiovasculares y resistencia a la insulina. Se recomienda intervención prioritaria y sostenida.` };
+    if (pctAlto >= 35) return { nivel: 'amarillo', texto: `El ${pctAlto}% del equipo presenta masa grasa en rango de precaución o elevado. Este porcentaje indica una tendencia al exceso de adiposidad que, sin intervención, tiende a progresar hacia condiciones crónicas. Es recomendable actuar de forma preventiva antes de que los valores se consoliden.` };
+    return { nivel: 'verde', texto: `El equipo presenta una distribución de masa grasa mayormente dentro de rangos saludables (${100-pctAlto}% en zona normal). Este resultado favorable debe mantenerse con programas de hábitos que refuercen los factores protectores ya presentes.` };
+  };
 
-function generarFilaSemaforo(label, verde, amarillo, rojo, total) {
-  const pctV = total ? Math.round(verde/total*100) : 0;
-  const pctA = total ? Math.round(amarillo/total*100) : 0;
-  const pctR = total ? Math.round(rojo/total*100) : 0;
-  return `
-    <div style="margin-bottom:16px;">
-      <div style="font-size:13px; font-weight:600; margin-bottom:8px;">${label}</div>
-      <div style="display:flex; height:24px; border-radius:6px; overflow:hidden;">
-        <div style="width:${pctV}%; background:#009444; transition:width 0.5s;"></div>
-        <div style="width:${pctA}%; background:#e67e22; transition:width 0.5s;"></div>
-        <div style="width:${pctR}%; background:#c0392b; transition:width 0.5s;"></div>
+  const diagnosticoVisceral = (pctAlto) => {
+    if (pctAlto >= 40) return { nivel: 'rojo', texto: `El ${pctAlto}% del equipo presenta grasa visceral elevada (nivel ≥10). La grasa visceral es el tipo de grasa con mayor impacto metabólico: se asocia directamente con resistencia a la insulina, síndrome metabólico, inflamación crónica y riesgo cardiovascular aumentado. Este hallazgo requiere intervención nutricional y de actividad física de forma urgente.` };
+    if (pctAlto >= 20) return { nivel: 'amarillo', texto: `El ${pctAlto}% del equipo presenta grasa visceral en zona de precaución. Aunque aún no es un valor crítico, la tendencia a la acumulación visceral es reversible con cambios de hábitos sostenidos. La intervención temprana tiene un impacto significativamente mayor que la tardía.` };
+    return { nivel: 'verde', texto: `Los niveles de grasa visceral del equipo se encuentran mayormente en rango saludable. Este resultado protege la salud metabólica del equipo y reduce el riesgo cardiovascular grupal.` };
+  };
+
+  const diagnosticoPresion = (pctAlto) => {
+    if (pctAlto >= 35) return { nivel: 'rojo', texto: `El ${pctAlto}% del equipo presenta presión arterial en rango de alerta o hipertensión. La hipertensión arterial es el principal factor de riesgo cardiovascular modificable. Su presencia en una proporción significativa del equipo indica la necesidad de evaluación médica complementaria y un programa de reducción de estrés, sodio y sedentarismo.` };
+    if (pctAlto >= 20) return { nivel: 'amarillo', texto: `El ${pctAlto}% del equipo presenta presión arterial en zona de precaución (elevada o limítrofe). Esta proporción sugiere que el equipo está bajo una carga de estrés o hábitos que impactan el sistema cardiovascular. La intervención preventiva puede revertir estos valores antes de que progresen a hipertensión establecida.` };
+    return { nivel: 'verde', texto: `La mayoría del equipo presenta presión arterial dentro de rangos normales. Este resultado es positivo y debe mantenerse con estrategias de manejo del estrés y hábitos saludables.` };
+  };
+
+  const diagnosticoGlicemia = (pctAlto) => {
+    if (pctAlto >= 30) return { nivel: 'rojo', texto: `El ${pctAlto}% del equipo presenta glicemia capilar alterada o en rango de sospecha de diabetes tipo 2. Este hallazgo es clínicamente relevante. Se recomienda derivación a control médico con hemoglobina glicosilada (HbA1c) para confirmación diagnóstica, junto con intervención nutricional focalizada en manejo glucémico.` };
+    if (pctAlto >= 15) return { nivel: 'amarillo', texto: `El ${pctAlto}% del equipo presenta glicemia capilar en zona de precaución (alterada en ayunas). Aunque no es diagnóstico de diabetes, indica una tendencia que puede progresar sin intervención. Los hábitos alimentarios, el nivel de actividad física y el manejo del estrés son los principales factores modificables.` };
+    return { nivel: 'verde', texto: `Los valores de glicemia capilar del equipo se encuentran mayormente en rango normal. Este resultado debe reforzarse con hábitos que protejan la regulación glucémica a largo plazo.` };
+  };
+
+  const diagnosticoIMC = (pctSobrepeso, pctObeso) => {
+    const pctTotal = pctSobrepeso + pctObeso;
+    if (pctObeso >= 25) return { nivel: 'rojo', texto: `El ${pctObeso}% del equipo presenta IMC en rango de obesidad y el ${pctSobrepeso}% en sobrepeso, lo que totaliza un ${pctTotal}% con exceso de peso. Este perfil aumenta el riesgo de enfermedades crónicas no transmisibles y puede impactar directamente en la energía, productividad y ausentismo del equipo. Se requiere un programa integral y sostenido.` };
+    if (pctTotal >= 40) return { nivel: 'amarillo', texto: `El ${pctTotal}% del equipo presenta exceso de peso (sobrepeso u obesidad). Esta proporción, aunque no es crítica, representa una oportunidad concreta de intervención preventiva que puede tener impacto en el bienestar general, la energía laboral y el riesgo cardiovascular del equipo.` };
+    return { nivel: 'verde', texto: `La distribución de IMC del equipo muestra una mayoría en rango normal. Los resultados son alentadores, aunque siempre es recomendable mantener programas de hábitos para sostener estos resultados en el tiempo.` };
+  };
+
+  const diagnosticoEstres = (promEstres) => {
+    if (promEstres >= 4.0) return { nivel: 'rojo', texto: `El nivel de estrés percibido promedio del equipo es de ${promEstres}/5, lo que indica una carga emocional y mental significativamente alta. Este nivel de estrés crónico tiene consecuencias directas sobre la salud física (presión arterial, glicemia, sistema inmune) y sobre la productividad, el ausentismo y el clima laboral. Se recomienda intervención prioritaria con estrategias de manejo del estrés y autorregulación.` };
+    if (promEstres >= 3.0) return { nivel: 'amarillo', texto: `El nivel de estrés percibido promedio es de ${promEstres}/5, lo que indica una carga emocional moderada-alta. Aunque no es crítico, este nivel sostenido en el tiempo puede derivar en agotamiento, deterioro de hábitos saludables y aumento del ausentismo. Una intervención preventiva tiene alta probabilidad de impacto positivo.` };
+    return { nivel: 'verde', texto: `El nivel de estrés percibido promedio es de ${promEstres}/5, lo que indica una carga emocional manejable en el equipo. Este resultado es positivo y debe mantenerse con estrategias de autocuidado y bienestar emocional.` };
+  };
+
+  const diagnosticoSueno = (pctMalSueno) => {
+    if (pctMalSueno >= 50) return { nivel: 'rojo', texto: `El ${pctMalSueno}% del equipo reporta dormir menos de 6 horas habituales. La privación crónica de sueño es uno de los factores de mayor impacto sobre la salud metabólica, el rendimiento cognitivo, el estado emocional y la regulación del apetito. Su presencia en más de la mitad del equipo es un hallazgo que requiere atención estratégica.` };
+    if (pctMalSueno >= 30) return { nivel: 'amarillo', texto: `El ${pctMalSueno}% del equipo reporta sueño insuficiente (menos de 6 horas). La falta de sueño impacta directamente en la energía durante la jornada, los hábitos alimentarios (aumenta el consumo de alimentos ultraprocesados y azúcares) y la capacidad de manejo del estrés.` };
+    return { nivel: 'verde', texto: `La mayoría del equipo reporta horas de sueño dentro de rangos adecuados. Este resultado favorece la recuperación, la regulación metabólica y el rendimiento laboral.` };
+  };
+
+  const diagnosticoActividad = (pctSedentario) => {
+    if (pctSedentario >= 50) return { nivel: 'rojo', texto: `El ${pctSedentario}% del equipo reporta realizar actividad física con muy baja frecuencia o nunca. El sedentarismo es un factor de riesgo independiente para enfermedades cardiovasculares, metabólicas y musculoesqueléticas, y se asocia directamente con los niveles elevados de grasa visceral y adiposidad observados en el Check-up.` };
+    if (pctSedentario >= 30) return { nivel: 'amarillo', texto: `El ${pctSedentario}% del equipo reporta baja actividad física. Este porcentaje, combinado con las largas jornadas laborales, puede contribuir al aumento de adiposidad y al deterioro del bienestar general. Estrategias de activación durante la jornada y convenios deportivos pueden tener un impacto significativo.` };
+    return { nivel: 'verde', texto: `La mayoría del equipo reporta realizar actividad física con frecuencia adecuada. Este hábito es uno de los más protectores para la salud metabólica y cardiovascular, y debe reforzarse como parte de la cultura organizacional.` };
+  };
+
+  const diagnosticoAlimentacion = (promCalidad) => {
+    if (promCalidad <= 2.5) return { nivel: 'rojo', texto: `La percepción de calidad alimentaria promedio del equipo es de ${promCalidad}/5, lo que indica que los propios colaboradores reconocen deficiencias significativas en sus hábitos alimentarios durante la jornada. Este resultado, combinado con los hallazgos clínicos del Check-up, sugiere que la alimentación en el entorno laboral es una palanca de intervención prioritaria.` };
+    if (promCalidad <= 3.5) return { nivel: 'amarillo', texto: `La percepción de calidad alimentaria promedio es de ${promCalidad}/5. Aunque es un valor moderado, indica que existe margen de mejora significativo en los hábitos alimentarios durante la jornada. Intervenciones prácticas y accesibles pueden tener un impacto rápido y visible.` };
+    return { nivel: 'verde', texto: `El equipo percibe su alimentación durante la jornada como de buena calidad (${promCalidad}/5). Este resultado positivo puede potenciarse con educación nutricional que consolide y mejore los hábitos ya presentes.` };
+  };
+
+  // ── CÁLCULOS GLOBALES ──
+  const pctGrasaAlta = pct(resultados.filter(r => r.semaforo_grasa_pct === 'rojo' || r.semaforo_grasa_pct === 'amarillo').length, n);
+  const pctVisceralAlto = pct(resultados.filter(r => r.semaforo_grasa_visceral === 'rojo' || r.semaforo_grasa_visceral === 'amarillo').length, n);
+  const pctPresionAlta = pct(resultados.filter(r => r.semaforo_presion === 'rojo' || r.semaforo_presion === 'amarillo').length, n);
+  const pctGlicemiaAlta = pct(resultados.filter(r => r.semaforo_glicemia === 'rojo' || r.semaforo_glicemia === 'amarillo').length, n);
+  const pctSobrepeso = semPct(resultados, 'semaforo_imc', 'amarillo');
+  const pctObeso = semPct(resultados, 'semaforo_imc', 'rojo');
+
+  const promEstres = nEnc ? parseFloat(encPromLikert(respuestasEncuesta, 'nivel_estres')) : null;
+  const promBienestar = nEnc ? parseFloat(encPromLikert(respuestasEncuesta, 'bienestar_general')) : null;
+  const promCalidadAlim = nEnc ? parseFloat(encPromLikert(respuestasEncuesta, 'calidad_alimentacion_percibida')) : null;
+  const pctMalSueno = nEnc ? pct(respuestasEncuesta.filter(r => r.horas_sueno <= 5.5).length, nEnc) : null;
+  const pctSedentario = nEnc ? pct(respuestasEncuesta.filter(r => ['Casi nunca','Nunca'].includes(r.actividad_fisica_frecuencia)).length, nEnc) : null;
+
+  // ── DIAGNÓSTICOS ──
+  const dxGrasa = diagnosticoGrasa(pctGrasaAlta);
+  const dxVisceral = diagnosticoVisceral(pctVisceralAlto);
+  const dxPresion = diagnosticoPresion(pctPresionAlta);
+  const dxGlicemia = diagnosticoGlicemia(pctGlicemiaAlta);
+  const dxIMC = diagnosticoIMC(pctSobrepeso, pctObeso);
+  const dxEstres = promEstres ? diagnosticoEstres(promEstres) : null;
+  const dxSueno = pctMalSueno !== null ? diagnosticoSueno(pctMalSueno) : null;
+  const dxSedentario = pctSedentario !== null ? diagnosticoActividad(pctSedentario) : null;
+  const dxAlimentacion = promCalidadAlim ? diagnosticoAlimentacion(promCalidadAlim) : null;
+
+  // ── DIAGNÓSTICO FINAL INTEGRADO ──
+  const hallazgosCriticos = [dxGrasa, dxVisceral, dxPresion, dxGlicemia, dxIMC, dxEstres, dxSueno, dxSedentario, dxAlimentacion]
+    .filter(d => d && d.nivel === 'rojo');
+  const hallazgosAlerta = [dxGrasa, dxVisceral, dxPresion, dxGlicemia, dxIMC, dxEstres, dxSueno, dxSedentario, dxAlimentacion]
+    .filter(d => d && d.nivel === 'amarillo');
+
+  const diagnosticoFinal = () => {
+    if (hallazgosCriticos.length >= 3) return { color: '#c0392b', titulo: 'Perfil de riesgo elevado', texto: `El diagnóstico integrado del equipo de ${empresa} revela un perfil de salud con múltiples hallazgos en zona de riesgo. La combinación de indicadores clínicos alterados y factores de bienestar percibido deteriorados configura un escenario que requiere intervención estructurada, continua y multidimensional. Los resultados sugieren que las condiciones del entorno laboral, los hábitos y el nivel de estrés están interactuando de forma negativa sobre la salud del equipo. Una intervención aislada o puntual tendrá impacto limitado: se requiere un programa de al menos 3 meses con seguimiento.` };
+    if (hallazgosCriticos.length >= 1 || hallazgosAlerta.length >= 3) return { color: '#e67e22', titulo: 'Perfil con focos de atención prioritarios', texto: `El diagnóstico integrado muestra un equipo con fortalezas y áreas de mejora significativas. Se identifican focos concretos que requieren intervención preventiva antes de que progresen. La buena noticia es que el momento de intervención es el adecuado: los cambios de hábitos en esta etapa tienen una probabilidad de éxito significativamente mayor que cuando los indicadores ya se han consolidado en rangos críticos.` };
+    return { color: '#009444', titulo: 'Perfil de salud favorable con oportunidades de mejora', texto: `El diagnóstico integrado del equipo de ${empresa} muestra un perfil de salud mayormente dentro de rangos saludables. Este es un excelente punto de partida para implementar un programa de bienestar que consolide los hábitos positivos ya presentes y prevenga el deterioro futuro. Los equipos con este perfil responden especialmente bien a programas de desarrollo del criterio para la salud.` };
+  };
+
+  const dx = diagnosticoFinal();
+
+  // ── RECOMENDACIONES ──
+  const recomendaciones = [];
+  if (dxGrasa?.nivel !== 'verde' || dxIMC?.nivel !== 'verde') recomendaciones.push({ icon: '🥗', titulo: 'Programa de alimentación saludable', desc: 'Talleres de nutrición práctica enfocados en calidad alimentaria durante la jornada, manejo del peso y reducción de adiposidad. Incluye estrategias aplicables al entorno de trabajo real del equipo.' });
+  if (dxVisceral?.nivel !== 'verde' || dxSedentario?.nivel !== 'verde') recomendaciones.push({ icon: '🏃', titulo: 'Activación física y reducción de sedentarismo', desc: 'Pausas activas estructuradas, orientación sobre actividad física accesible y convenios deportivos. El objetivo es reducir la grasa visceral y mejorar la composición corporal.' });
+  if (dxEstres?.nivel !== 'verde' || dxSueno?.nivel !== 'verde') recomendaciones.push({ icon: '🌿', titulo: 'Manejo del estrés y autocuidado', desc: 'Taller de técnicas de autorregulación, aromaterapia clínica aplicada al bienestar laboral y estrategias de mejora del sueño. Aborda el estrés crónico como factor que potencia todos los demás riesgos.' });
+  if (dxPresion?.nivel !== 'verde' || dxGlicemia?.nivel !== 'verde') recomendaciones.push({ icon: '🩺', titulo: 'Seguimiento de indicadores clínicos', desc: 'Operativo de salud periódico (Check-up Nútrete) para monitorear la evolución de los indicadores en riesgo. Permite medir el impacto de las intervenciones y detectar casos que requieren derivación médica.' });
+  recomendaciones.push({ icon: '📈', titulo: 'Cultivo de Hábitos Nútrete — Programa de 3 meses', desc: 'Programa continuo de acompañamiento en hábitos de salud, con sesiones periódicas, seguimiento individual y evaluación de impacto. Es el paso natural después de este diagnóstico y el que garantiza cambios sostenibles en el tiempo.' });
+
+  // ── FUNCIÓN BARRA ──
+  const barra = (label, verde, amarillo, rojo, total) => {
+    const pV = pct(verde, total), pA = pct(amarillo, total), pR = pct(rojo, total);
+    return `<div style="margin-bottom:14px;">
+      <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:600;margin-bottom:5px;">
+        <span>${label}</span>
+        <span style="font-weight:400;color:var(--texto-suave);">${total} evaluados</span>
       </div>
-      <div style="display:flex; gap:16px; margin-top:6px; font-size:12px; color:var(--texto-suave);">
-        <span style="color:#07542F;">● Normal: ${verde} (${pctV}%)</span>
-        <span style="color:#a05a00;">● Alerta: ${amarillo} (${pctA}%)</span>
-        <span style="color:#c0392b;">● Riesgo: ${rojo} (${pctR}%)</span>
+      <div style="display:flex;height:22px;border-radius:6px;overflow:hidden;background:#f0f0f0;">
+        ${pV ? `<div style="width:${pV}%;background:#009444;" title="Normal: ${verde}"></div>` : ''}
+        ${pA ? `<div style="width:${pA}%;background:#e67e22;" title="Alerta: ${amarillo}"></div>` : ''}
+        ${pR ? `<div style="width:${pR}%;background:#c0392b;" title="Riesgo: ${rojo}"></div>` : ''}
+      </div>
+      <div style="display:flex;gap:16px;margin-top:5px;font-size:11px;color:var(--texto-suave);">
+        <span>● Normal: ${verde} (${pV}%)</span>
+        <span style="color:#a05a00;">● Alerta: ${amarillo} (${pA}%)</span>
+        <span style="color:#c0392b;">● Riesgo: ${rojo} (${pR}%)</span>
       </div>
     </div>`;
+  };
+
+  const tarjetaDx = (titulo, dx, extra='') => dx ? `
+    <div style="background:white;border-radius:10px;border:1px solid var(--gris-borde);padding:18px 20px;margin-bottom:14px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+        <div style="width:12px;height:12px;border-radius:50%;background:${dx.nivel==='rojo'?'#c0392b':dx.nivel==='amarillo'?'#e67e22':'#009444'};flex-shrink:0;"></div>
+        <div style="font-size:14px;font-weight:700;color:var(--texto);">${titulo}</div>
+        <div style="margin-left:auto;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;background:${dx.nivel==='rojo'?'#fdf0ee':dx.nivel==='amarillo'?'#fef3e8':'#e8f5ee'};color:${dx.nivel==='rojo'?'#c0392b':dx.nivel==='amarillo'?'#a05a00':'#07542F'};">${dx.nivel==='rojo'?'RIESGO':dx.nivel==='amarillo'?'PRECAUCIÓN':'NORMAL'}</div>
+      </div>
+      <p style="font-size:13px;color:var(--texto-suave);line-height:1.7;margin:0;">${dx.texto}</p>
+      ${extra}
+    </div>` : '';
+
+  // ── DESGLOSE POR DEPARTAMENTO ──
+  const bloqueAreas = areas.length > 1 ? areas.map(area => {
+    const rArea = resultados.filter(r => r.area === area);
+    const nA = rArea.length;
+    const pGrasaA = pct(rArea.filter(r => r.semaforo_grasa_pct === 'rojo' || r.semaforo_grasa_pct === 'amarillo').length, nA);
+    const pPresionA = pct(rArea.filter(r => r.semaforo_presion === 'rojo' || r.semaforo_presion === 'amarillo').length, nA);
+    const pGlicA = pct(rArea.filter(r => r.semaforo_glicemia === 'rojo' || r.semaforo_glicemia === 'amarillo').length, nA);
+    const imcPromA = prom(rArea, 'imc');
+    return `<div style="background:white;border-radius:10px;border:1px solid var(--gris-borde);padding:16px 20px;margin-bottom:12px;">
+      <div style="font-size:14px;font-weight:700;color:var(--verde-oscuro);margin-bottom:12px;">${area} <span style="font-weight:400;font-size:12px;color:var(--texto-suave);">(${nA} colaboradores)</span></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;">
+        <div style="text-align:center;padding:10px;background:var(--gris-claro);border-radius:8px;">
+          <div style="font-size:20px;font-weight:800;color:${pGrasaA>=40?'#c0392b':pGrasaA>=20?'#e67e22':'#009444'};">${pGrasaA}%</div>
+          <div style="font-size:11px;color:var(--texto-suave);">Grasa elevada</div>
+        </div>
+        <div style="text-align:center;padding:10px;background:var(--gris-claro);border-radius:8px;">
+          <div style="font-size:20px;font-weight:800;color:${pPresionA>=30?'#c0392b':pPresionA>=15?'#e67e22':'#009444'};">${pPresionA}%</div>
+          <div style="font-size:11px;color:var(--texto-suave);">Presión en alerta</div>
+        </div>
+        <div style="text-align:center;padding:10px;background:var(--gris-claro);border-radius:8px;">
+          <div style="font-size:20px;font-weight:800;color:${pGlicA>=25?'#c0392b':pGlicA>=15?'#e67e22':'#009444'};">${pGlicA}%</div>
+          <div style="font-size:11px;color:var(--texto-suave);">Glicemia alterada</div>
+        </div>
+        <div style="text-align:center;padding:10px;background:var(--gris-claro);border-radius:8px;">
+          <div style="font-size:20px;font-weight:800;color:var(--verde-oscuro);">${imcPromA ? imcPromA.toFixed(1) : '—'}</div>
+          <div style="font-size:11px;color:var(--texto-suave);">IMC promedio</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('') : '';
+
+  // ── RENDER FINAL ──
+  cont.innerHTML = `
+
+    <!-- PORTADA -->
+    <div style="background:var(--verde-oscuro);border-radius:12px;padding:32px;margin-bottom:20px;color:white;">
+      <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#7fc89a;margin-bottom:8px;">Nútrete EIRL · Diagnóstico de Bienestar Corporativo</div>
+      <div style="font-size:24px;font-weight:800;margin-bottom:4px;">${empresa}</div>
+      <div style="font-size:14px;color:#a8d5b8;">${evaluacion?.nombre_sesion || ''} · ${fecha}</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-top:24px;">
+        <div style="background:rgba(255,255,255,0.12);border-radius:8px;padding:14px;text-align:center;">
+          <div style="font-size:28px;font-weight:800;">${n}</div>
+          <div style="font-size:11px;color:#a8d5b8;">Colaboradores evaluados</div>
+        </div>
+        ${nEnc ? `<div style="background:rgba(255,255,255,0.12);border-radius:8px;padding:14px;text-align:center;">
+          <div style="font-size:28px;font-weight:800;">${nEnc}</div>
+          <div style="font-size:11px;color:#a8d5b8;">Respuestas de encuesta</div>
+        </div>` : ''}
+        <div style="background:rgba(255,255,255,0.12);border-radius:8px;padding:14px;text-align:center;">
+          <div style="font-size:28px;font-weight:800;">${hallazgosCriticos.length}</div>
+          <div style="font-size:11px;color:#a8d5b8;">Hallazgos críticos</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.12);border-radius:8px;padding:14px;text-align:center;">
+          <div style="font-size:28px;font-weight:800;">${areas.length || '—'}</div>
+          <div style="font-size:11px;color:#a8d5b8;">Departamentos</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DIAGNÓSTICO FINAL -->
+    <div style="background:white;border-radius:12px;border:2px solid ${dx.color};padding:24px;margin-bottom:20px;">
+      <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:${dx.color};font-weight:700;margin-bottom:8px;">Diagnóstico integrado</div>
+      <div style="font-size:18px;font-weight:700;color:var(--texto);margin-bottom:12px;">${dx.titulo}</div>
+      <p style="font-size:14px;color:var(--texto-suave);line-height:1.75;margin:0;">${dx.texto}</p>
+    </div>
+
+    <!-- INDICADORES CLÍNICOS (CHECK-UP) -->
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-titulo">Indicadores clínicos — Check-up Nútrete®</div>
+
+      <div style="margin-bottom:20px;">
+        ${barra('IMC', semPct(resultados,'semaforo_imc','verde')*n/100|0, semPct(resultados,'semaforo_imc','amarillo')*n/100|0, semPct(resultados,'semaforo_imc','rojo')*n/100|0, n)}
+        ${barra('Masa grasa %', semPct(resultados,'semaforo_grasa_pct','verde')*n/100|0, semPct(resultados,'semaforo_grasa_pct','amarillo')*n/100|0, semPct(resultados,'semaforo_grasa_pct','rojo')*n/100|0, n)}
+        ${barra('Grasa visceral', semPct(resultados,'semaforo_grasa_visceral','verde')*n/100|0, semPct(resultados,'semaforo_grasa_visceral','amarillo')*n/100|0, semPct(resultados,'semaforo_grasa_visceral','rojo')*n/100|0, n)}
+        ${barra('Presión arterial', semPct(resultados,'semaforo_presion','verde')*n/100|0, semPct(resultados,'semaforo_presion','amarillo')*n/100|0, semPct(resultados,'semaforo_presion','rojo')*n/100|0, n)}
+        ${barra('Glicemia capilar', semPct(resultados,'semaforo_glicemia','verde')*n/100|0, semPct(resultados,'semaforo_glicemia','amarillo')*n/100|0, semPct(resultados,'semaforo_glicemia','rojo')*n/100|0, n)}
+      </div>
+
+      ${tarjetaDx('Composición corporal — IMC', dxIMC)}
+      ${tarjetaDx('Adiposidad — Masa grasa', dxGrasa)}
+      ${tarjetaDx('Riesgo metabólico — Grasa visceral', dxVisceral)}
+      ${tarjetaDx('Salud cardiovascular — Presión arterial', dxPresion)}
+      ${tarjetaDx('Metabolismo glucídico — Glicemia', dxGlicemia)}
+    </div>
+
+    ${nEnc ? `
+    <!-- INDICADORES PERCIBIDOS (ENCUESTA) -->
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-titulo">Bienestar percibido — Encuesta de colaboradores (${nEnc} respuestas)</div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px;">
+        ${promEstres ? `<div style="text-align:center;padding:14px;background:${promEstres>=4?'#fdf0ee':promEstres>=3?'#fef3e8':'#e8f5ee'};border-radius:8px;">
+          <div style="font-size:26px;font-weight:800;color:${promEstres>=4?'#c0392b':promEstres>=3?'#e67e22':'#009444'};">${promEstres}/5</div>
+          <div style="font-size:12px;color:var(--texto-suave);">Estrés percibido</div>
+        </div>` : ''}
+        ${promBienestar ? `<div style="text-align:center;padding:14px;background:${promBienestar<=2.5?'#fdf0ee':promBienestar<=3.5?'#fef3e8':'#e8f5ee'};border-radius:8px;">
+          <div style="font-size:26px;font-weight:800;color:${promBienestar<=2.5?'#c0392b':promBienestar<=3.5?'#e67e22':'#009444'};">${promBienestar}/5</div>
+          <div style="font-size:12px;color:var(--texto-suave);">Bienestar general</div>
+        </div>` : ''}
+        ${promCalidadAlim ? `<div style="text-align:center;padding:14px;background:${promCalidadAlim<=2.5?'#fdf0ee':promCalidadAlim<=3.5?'#fef3e8':'#e8f5ee'};border-radius:8px;">
+          <div style="font-size:26px;font-weight:800;color:${promCalidadAlim<=2.5?'#c0392b':promCalidadAlim<=3.5?'#e67e22':'#009444'};">${promCalidadAlim}/5</div>
+          <div style="font-size:12px;color:var(--texto-suave);">Calidad alimentaria</div>
+        </div>` : ''}
+        ${pctMalSueno !== null ? `<div style="text-align:center;padding:14px;background:${pctMalSueno>=50?'#fdf0ee':pctMalSueno>=30?'#fef3e8':'#e8f5ee'};border-radius:8px;">
+          <div style="font-size:26px;font-weight:800;color:${pctMalSueno>=50?'#c0392b':pctMalSueno>=30?'#e67e22':'#009444'};">${pctMalSueno}%</div>
+          <div style="font-size:12px;color:var(--texto-suave);">Sueño insuficiente</div>
+        </div>` : ''}
+        ${pctSedentario !== null ? `<div style="text-align:center;padding:14px;background:${pctSedentario>=50?'#fdf0ee':pctSedentario>=30?'#fef3e8':'#e8f5ee'};border-radius:8px;">
+          <div style="font-size:26px;font-weight:800;color:${pctSedentario>=50?'#c0392b':pctSedentario>=30?'#e67e22':'#009444'};">${pctSedentario}%</div>
+          <div style="font-size:12px;color:var(--texto-suave);">Sedentarismo</div>
+        </div>` : ''}
+      </div>
+
+      ${tarjetaDx('Estrés percibido', dxEstres)}
+      ${tarjetaDx('Calidad del sueño', dxSueno)}
+      ${tarjetaDx('Actividad física', dxSedentario)}
+      ${tarjetaDx('Hábitos alimentarios', dxAlimentacion)}
+    </div>` : ''}
+
+    ${areas.length > 1 ? `
+    <!-- DESGLOSE POR DEPARTAMENTO -->
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-titulo">Desglose por departamento</div>
+      ${bloqueAreas}
+    </div>` : ''}
+
+    <!-- RECOMENDACIONES -->
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-titulo">Recomendaciones de programa — Nútrete EIRL</div>
+      <p style="font-size:13px;color:var(--texto-suave);margin-bottom:16px;">Basadas en los hallazgos de este diagnóstico, las siguientes intervenciones están indicadas para ${empresa}:</p>
+      ${recomendaciones.map((r, i) => `
+        <div style="display:flex;gap:14px;padding:14px 0;border-bottom:1px solid var(--gris-borde);">
+          <div style="font-size:24px;flex-shrink:0;">${r.icon}</div>
+          <div>
+            <div style="font-size:14px;font-weight:700;color:var(--verde-oscuro);margin-bottom:4px;">${r.titulo}</div>
+            <div style="font-size:13px;color:var(--texto-suave);line-height:1.65;">${r.desc}</div>
+          </div>
+        </div>`).join('')}
+    </div>
+
+    <!-- ACCIONES -->
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:40px;">
+      <button class="btn btn-verde" onclick="window.print()">🖨 Imprimir informe</button>
+      <button class="btn btn-outline" onclick="document.getElementById('informe-evaluacion').value='';document.getElementById('informe-contenido').style.display='none'">← Nueva selección</button>
+    </div>
+  `;
 }
 
 // ══════════════════════════════════════════════
