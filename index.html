@@ -899,6 +899,37 @@
       </div>
     </div>
 
+    <!-- ══ SECCIÓN: RESPALDO ══ -->
+    <div class="seccion" id="sec-respaldo">
+      <div class="seccion-titulo">Respaldo de encuestas</div>
+      <div class="seccion-subtitulo">Descarga las respuestas completas por empresa en formato legible</div>
+
+      <div class="card">
+        <div class="card-titulo">Seleccionar encuesta</div>
+        <div class="form-grid">
+          <div class="campo">
+            <label>Encuesta</label>
+            <select id="respaldo-encuesta-id">
+              <option value="">Selecciona una encuesta...</option>
+            </select>
+          </div>
+          <div class="campo" style="align-self:end;">
+            <button class="btn btn-verde" onclick="generarRespaldo()">Generar archivo</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="respaldo-preview" style="display:none;">
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <div class="card-titulo" style="margin:0;border:none;padding:0;" id="respaldo-titulo">Vista previa</div>
+            <button class="btn btn-verde" onclick="descargarRespaldo()">⬇ Descargar HTML</button>
+          </div>
+          <div id="respaldo-contenido" style="max-height:500px;overflow-y:auto;border:1px solid var(--gris-borde);border-radius:8px;padding:20px;background:var(--gris-claro);font-size:13px;"></div>
+        </div>
+      </div>
+    </div>
+
   </div><!-- /contenido -->
 </div><!-- /pantalla-app -->
 
@@ -1283,6 +1314,7 @@ function construirTabs() {
       { id: 'encuestas', label: 'Encuestas' },
       { id: 'informes', label: 'Informes' },
       { id: 'usuarios', label: 'Usuarios' },
+      { id: 'respaldo', label: 'Respaldo' },
     ],
     aliada: [
       { id: 'resumen', label: 'Mis clientes' },
@@ -1307,6 +1339,7 @@ function cambiarTab(id) {
   document.querySelector(`.tab[onclick="cambiarTab('${id}')"]`).classList.add('activo');
   document.getElementById(`sec-${id}`).classList.add('activa');
   if (id === 'usuarios') cargarUsuarios();
+  if (id === 'respaldo') cargarSelectRespaldo();
 }
 
 // ══════════════════════════════════════════════
@@ -2825,6 +2858,282 @@ async function eliminarUsuario(id) {
 }
 
 // ══════════════════════════════════════════════
+// ══════════════════════════════════════════════
+// RESPALDO DE ENCUESTAS
+// ══════════════════════════════════════════════
+async function cargarSelectRespaldo() {
+  const sel = document.getElementById('respaldo-encuesta-id');
+  if (!sel) return;
+
+  const { data } = await sb.from('encuestas')
+    .select('*, evaluacion:evaluacion_id(nombre_sesion, empresa:empresa_id(nombre))')
+    .order('created_at', { ascending: false });
+
+  if (!data || !data.length) {
+    sel.innerHTML = '<option value="">No hay encuestas disponibles</option>';
+    return;
+  }
+
+  sel.innerHTML = '<option value="">Selecciona una encuesta...</option>' +
+    data.map(enc => `<option value="${enc.id}" data-tipo="${enc.tipo}" data-empresa="${enc.evaluacion?.empresa?.nombre || ''}" data-sesion="${enc.evaluacion?.nombre_sesion || ''}">${enc.evaluacion?.empresa?.nombre || '—'} — ${enc.tipo === 'colaborador' ? 'Colaboradores' : 'Gerencia'} (${enc.tipo === 'colaborador' ? enc.evaluacion?.nombre_sesion || '' : ''})</option>`
+    ).join('');
+}
+
+let respaldoHTML = '';
+
+async function generarRespaldo() {
+  const sel = document.getElementById('respaldo-encuesta-id');
+  const encuestaId = sel.value;
+  const tipo = sel.options[sel.selectedIndex]?.dataset?.tipo;
+  const empresa = sel.options[sel.selectedIndex]?.dataset?.empresa || 'Empresa';
+  const sesion = sel.options[sel.selectedIndex]?.dataset?.sesion || '';
+
+  if (!encuestaId) { mostrarToast('Selecciona una encuesta primero', true); return; }
+
+  document.getElementById('respaldo-preview').style.display = 'none';
+  const cont = document.getElementById('respaldo-contenido');
+  cont.innerHTML = '<div class="loading"><div class="spinner"></div>Cargando respuestas...</div>';
+  document.getElementById('respaldo-preview').style.display = 'block';
+
+  const { data: respuestas } = await sb.from('respuestas_encuesta')
+    .select('*')
+    .eq('encuesta_id', encuestaId)
+    .order('created_at');
+
+  if (!respuestas || !respuestas.length) {
+    cont.innerHTML = '<div class="empty-state"><div class="icono">📝</div><p>No hay respuestas en esta encuesta aún.</p></div>';
+    document.getElementById('respaldo-titulo').textContent = 'Sin respuestas';
+    return;
+  }
+
+  const n = respuestas.length;
+  const fecha = new Date().toLocaleDateString('es-CL');
+  document.getElementById('respaldo-titulo').textContent = `${empresa} — ${tipo === 'colaborador' ? 'Colaboradores' : 'Gerencia'} · ${n} respuestas`;
+
+  if (tipo === 'colaborador') {
+    respaldoHTML = generarHTMLColaboradores(respuestas, empresa, sesion, fecha);
+  } else {
+    respaldoHTML = generarHTMLGerencia(respuestas, empresa, sesion, fecha);
+  }
+
+  cont.innerHTML = respaldoHTML;
+}
+
+function descargarRespaldo() {
+  if (!respaldoHTML) return;
+  const sel = document.getElementById('respaldo-encuesta-id');
+  const empresa = (sel.options[sel.selectedIndex]?.dataset?.empresa || 'empresa').replace(/\s+/g, '_');
+  const tipo = sel.options[sel.selectedIndex]?.dataset?.tipo || 'encuesta';
+  const fecha = new Date().toISOString().split('T')[0];
+  const nombreArchivo = `Nutrete_Respaldo_${empresa}_${tipo}_${fecha}.html`;
+
+  const blob = new Blob([`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Respaldo ${empresa}</title><style>body{font-family:Arial,sans-serif;max-width:900px;margin:0 auto;padding:32px;color:#1a1a1a;font-size:14px;line-height:1.6;}h1{color:#07542F;border-bottom:2px solid #009444;padding-bottom:10px;}h2{color:#07542F;font-size:14px;text-transform:uppercase;letter-spacing:1px;margin:24px 0 8px;border-bottom:1px solid #e0e0e0;padding-bottom:6px;}h3{color:#555;font-size:13px;margin:16px 0 6px;}table{width:100%;border-collapse:collapse;margin-bottom:20px;}th{background:#07542F;color:white;padding:8px 12px;text-align:left;font-size:12px;}td{padding:8px 12px;border-bottom:1px solid #eee;vertical-align:top;}tr:nth-child(even) td{background:#f8f9f8;}.resp-bloque{background:#f8f9f8;border-left:3px solid #009444;padding:12px 16px;margin-bottom:12px;border-radius:0 6px 6px 0;}.resp-num{font-weight:700;color:#07542F;margin-bottom:4px;font-size:12px;}.resp-pregunta{font-weight:600;margin-bottom:4px;}.resp-respuesta{color:#444;}.footer{margin-top:40px;padding-top:16px;border-top:1px solid #e0e0e0;font-size:12px;color:#888;text-align:center;}@media print{body{padding:16px;}}</style></head><body>${respaldoHTML}<div class="footer">Nútrete EIRL · RUT 76.702.594-7 · Generado el ${new Date().toLocaleDateString('es-CL', {day:'numeric',month:'long',year:'numeric'})} · Documento confidencial</div></body></html>`], { type: 'text/html;charset=utf-8' });
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = nombreArchivo;
+  a.click();
+  URL.revokeObjectURL(url);
+  mostrarToast(`Archivo descargado: ${nombreArchivo}`);
+}
+
+function generarHTMLColaboradores(respuestas, empresa, sesion, fecha) {
+  const n = respuestas.length;
+  const datos = respuestas.map(r => {
+    try { return JSON.parse(r.autopercepcion_salud || '{}'); } catch(e) { return {}; }
+  });
+
+  const contarOpcion = (key, op) => datos.filter(d => d[key] === op).length;
+  const contarCheck = (key, val) => datos.filter(d => Array.isArray(d[key]) && d[key].includes(val)).length;
+  const promCampo = (key) => {
+    const vals = datos.map(d => d[key]).filter(v => v !== null && v !== undefined && !isNaN(v));
+    return vals.length ? (vals.reduce((a,b) => a+b, 0) / vals.length).toFixed(1) : '—';
+  };
+  const pct = (c) => n ? Math.round(c/n*100) : 0;
+
+  const filaOpciones = (key, opciones) => opciones.map(op => {
+    const c = contarOpcion(key, op);
+    return `<tr><td>${op}</td><td style="width:60px;text-align:center;">${c}</td><td style="width:60px;text-align:center;">${pct(c)}%</td></tr>`;
+  }).join('');
+
+  const filaChecks = (key, items) => items.map(([val, label]) => {
+    const c = contarCheck(key, val);
+    return `<tr><td>${label}</td><td style="width:60px;text-align:center;">${c}</td><td style="width:60px;text-align:center;">${pct(c)}%</td></tr>`;
+  }).join('');
+
+  const tablaHeader = `<tr><th>Opción</th><th>N</th><th>%</th></tr>`;
+
+  const escalaTabla = (key) => [1,2,3,4,5].map(nivel => {
+    const c = datos.filter(d => d[key] === nivel).length;
+    return `<tr><td>Nivel ${nivel}</td><td style="width:60px;text-align:center;">${c}</td><td style="width:60px;text-align:center;">${pct(c)}%</td></tr>`;
+  }).join('');
+
+  const abiertas = (key, titulo) => {
+    const resps = datos.map(d => d[key]).filter(Boolean);
+    if (!resps.length) return '';
+    return `<h3>${titulo}</h3>${resps.map((r, i) => `<div class="resp-bloque"><div class="resp-num">Respuesta ${i+1}</div><div class="resp-respuesta">${r}</div></div>`).join('')}`;
+  };
+
+  return `
+    <h1>Respaldo de Encuesta de Colaboradores</h1>
+    <table><tr><td><strong>Empresa:</strong> ${empresa}</td><td><strong>Sesión:</strong> ${sesion}</td><td><strong>Respuestas:</strong> ${n}</td><td><strong>Fecha:</strong> ${fecha}</td></tr></table>
+
+    <h2>Sección 1 — Información general</h2>
+    <h3>Área o departamento</h3>
+    <table>${tablaHeader}${filaOpciones('area_dept', ['Administración','Operaciones','Producción','Comercial','Recursos Humanos / Personas','Finanzas','Tecnología','Logística','Otra'])}</table>
+    <h3>Rango de edad</h3>
+    <table>${tablaHeader}${filaOpciones('rango_edad', ['Menos de 25 años','25–34 años','35–44 años','45–54 años','55–64 años','65 años o más'])}</table>
+    <h3>Modalidad de trabajo</h3>
+    <table>${tablaHeader}${filaOpciones('modalidad_trabajo', ['Presencial','Híbrida','Remota','Trabajo en terreno','Otra'])}</table>
+    <h3>Antigüedad</h3>
+    <table>${tablaHeader}${filaOpciones('antiguedad', ['Menos de 1 año','1–3 años','4–6 años','7–10 años','Más de 10 años'])}</table>
+
+    <h2>Sección 2 — Bienestar general</h2>
+    <h3>Bienestar general (promedio: ${promCampo('bienestar_general')}/5)</h3>
+    <table>${tablaHeader}${escalaTabla('bienestar_general')}</table>
+    <h3>Satisfacción con calidad de vida (promedio: ${promCampo('satisfaccion_vida')}/5)</h3>
+    <table>${tablaHeader}${escalaTabla('satisfaccion_vida')}</table>
+    <h3>Herramientas para el bienestar (promedio: ${promCampo('herramientas_bienestar')}/5)</h3>
+    <table>${tablaHeader}${escalaTabla('herramientas_bienestar')}</table>
+    <h3>Prioridad de mejorar bienestar (promedio: ${promCampo('prioridad_bienestar')}/5)</h3>
+    <table>${tablaHeader}${escalaTabla('prioridad_bienestar')}</table>
+
+    <h2>Sección 3 — Alimentación</h2>
+    <h3>Calidad de alimentación percibida (promedio: ${promCampo('calidad_alimentacion')}/5)</h3>
+    <table>${tablaHeader}${escalaTabla('calidad_alimentacion')}</table>
+    <h3>Consumo de frutas y verduras</h3>
+    <table>${tablaHeader}${filaOpciones('frutas_verduras', ['Todos los días','5–6 días a la semana','3–4 días a la semana','1–2 días a la semana','Casi nunca'])}</table>
+    <h3>Consumo de ultraprocesados</h3>
+    <table>${tablaHeader}${filaOpciones('ultraprocesados', ['Todos los días','5–6 días a la semana','3–4 días a la semana','1–2 días a la semana','Casi nunca'])}</table>
+    <h3>Acceso a alimentación saludable en jornada (promedio: ${promCampo('acceso_saludable')}/5)</h3>
+    <table>${tablaHeader}${escalaTabla('acceso_saludable')}</table>
+    <h3>La jornada dificulta una alimentación saludable (promedio: ${promCampo('jornada_dificulta_alim')}/5)</h3>
+    <table>${tablaHeader}${escalaTabla('jornada_dificulta_alim')}</table>
+    <h3>Comidas realizadas con tranquilidad</h3>
+    <table>${tablaHeader}${filaOpciones('comidas_tranquilas', ['Siempre','Frecuentemente','A veces','Rara vez','Nunca'])}</table>
+
+    <h2>Sección 4 — Movimiento y actividad física</h2>
+    <h3>Días de actividad física por semana</h3>
+    <table>${tablaHeader}${filaOpciones('dias_actividad', ['0 días','1–2 días','3–4 días','5–6 días','7 días'])}</table>
+    <h3>Tiempo sedentario en jornada</h3>
+    <table>${tablaHeader}${filaOpciones('tiempo_sedentario', ['Menos de 2 horas','2–4 horas','4–6 horas','6–8 horas','Más de 8 horas','No aplica a mi trabajo'])}</table>
+    <h3>El trabajo permite pausas de movimiento (promedio: ${promCampo('pausas_movimiento')}/5)</h3>
+    <table>${tablaHeader}${escalaTabla('pausas_movimiento')}</table>
+    <h3>El trabajo facilita mantenerse activo/a (promedio: ${promCampo('trabajo_facilita_actividad')}/5)</h3>
+    <table>${tablaHeader}${escalaTabla('trabajo_facilita_actividad')}</table>
+
+    <h2>Sección 5 — Sueño y recuperación</h2>
+    <h3>Horas de sueño por noche</h3>
+    <table>${tablaHeader}${filaOpciones('horas_sueno', ['Menos de 5 horas','5–6 horas','6–7 horas','7–8 horas','Más de 8 horas'])}</table>
+    <h3>Calidad del sueño (promedio: ${promCampo('calidad_sueno')}/5)</h3>
+    <table>${tablaHeader}${escalaTabla('calidad_sueno')}</table>
+    <h3>Frecuencia de despertar descansado/a (promedio: ${promCampo('descansado_amanecer')}/5)</h3>
+    <table>${tablaHeader}${escalaTabla('descansado_amanecer')}</table>
+    <h3>El trabajo afecta el descanso (promedio: ${promCampo('trabajo_afecta_sueno')}/5)</h3>
+    <table>${tablaHeader}${escalaTabla('trabajo_afecta_sueno')}</table>
+
+    <h2>Sección 6 — Energía y vitalidad</h2>
+    <h3>Nivel de energía en jornada (promedio: ${promCampo('nivel_energia')}/5)</h3>
+    <table>${tablaHeader}${escalaTabla('nivel_energia')}</table>
+    <h3>Frecuencia de cansancio en jornada (promedio: ${promCampo('cansancio_jornada')}/5)</h3>
+    <table>${tablaHeader}${escalaTabla('cansancio_jornada')}</table>
+    <h3>Momento de mayor baja de energía</h3>
+    <table>${tablaHeader}${filaOpciones('momento_baja_energia', ['Al comenzar la jornada','Durante la mañana','Después del almuerzo','Durante la tarde','Al finalizar la jornada','No noto una disminución importante'])}</table>
+    <h3>Los hábitos permiten mantener energía (promedio: ${promCampo('habitos_energia')}/5)</h3>
+    <table>${tablaHeader}${escalaTabla('habitos_energia')}</table>
+
+    <h2>Sección 7 — Estrés y recursos personales</h2>
+    <h3>Carga laboral difícil de manejar (promedio: ${promCampo('carga_laboral')}/5)</h3>
+    <table>${tablaHeader}${escalaTabla('carga_laboral')}</table>
+    <h3>Dificultad para desconectarse (promedio: ${promCampo('desconexion_trabajo')}/5)</h3>
+    <table>${tablaHeader}${escalaTabla('desconexion_trabajo')}</table>
+    <h3>Herramientas para el estrés (promedio: ${promCampo('herramientas_estres')}/5)</h3>
+    <table>${tablaHeader}${escalaTabla('herramientas_estres')}</table>
+    <h3>Apoyo ante situaciones difíciles (promedio: ${promCampo('apoyo_laboral')}/5)</h3>
+    <table>${tablaHeader}${escalaTabla('apoyo_laboral')}</table>
+    <h3>Estrategias actuales para el estrés</h3>
+    <table>${tablaHeader}${filaChecks('estrategias_estres', [['actividad_fis','Actividad física'],['dormir','Dormir o descansar'],['alimentacion_est','Alimentación'],['respiracion','Respiración / meditación'],['familia_amigos','Familia o amigos'],['naturaleza','Naturaleza / aire libre'],['plantas','Plantas medicinales'],['aromaterapia_est','Aromaterapia'],['psicoterapia','Psicoterapia'],['hobbies','Hobbies'],['ninguna_est','Ninguna actualmente'],['otra_est','Otra']])}</table>
+
+    <h2>Sección 8 — Entorno laboral</h2>
+    ${[['ambiente_laboral','Ambiente laboral'],['opiniones_escuchadas','Opiniones escuchadas'],['respeto_laboral','Respeto en el trabajo'],['carga_adecuada','Carga de trabajo adecuada'],['autonomia_trabajo','Autonomía en el trabajo'],['trabajo_facilita_habitos','El trabajo facilita hábitos saludables'],['cultura_bienestar','Cultura de bienestar presente']].map(([key, label]) => `<h3>${label} (promedio: ${promCampo(key)}/5)</h3><table>${tablaHeader}${escalaTabla(key)}</table>`).join('')}
+
+    <h2>Sección 9 — Autocuidado</h2>
+    <h3>Facilidad para incorporar autocuidado (promedio: ${promCampo('facilidad_autocuidado')}/5)</h3>
+    <table>${tablaHeader}${escalaTabla('facilidad_autocuidado')}</table>
+    <h3>Áreas que el equipo quiere fortalecer</h3>
+    <table>${tablaHeader}${filaChecks('areas_fortalecer', [['alim_fort','Alimentación'],['sueno_fort','Sueño'],['energia_fort','Energía'],['actividad_fort','Actividad física'],['digestiva','Salud digestiva'],['estres_fort','Manejo del estrés'],['cardiovascular_fort','Salud cardiovascular'],['piel','Salud de la piel'],['metabolica','Salud metabólica'],['hormonal','Salud hormonal'],['autocuidado_fort','Autocuidado'],['otro_fort','Otro']])}</table>
+
+    <h2>Sección 10 — Fitoterapia y bienestar natural</h2>
+    <h3>Uso actual de plantas medicinales</h3>
+    <table>${tablaHeader}${filaOpciones('uso_plantas', ['Sí, frecuentemente','Sí, ocasionalmente','Lo he utilizado alguna vez','No','No sé suficiente sobre el tema'])}</table>
+    <h3>Temas de interés en plantas medicinales</h3>
+    <table>${tablaHeader}${filaChecks('interes_plantas', [['digestion_pl','Digestión'],['sueno_pl','Sueño'],['relajacion','Relajación'],['estres_pl','Estrés cotidiano'],['energia_pl','Energía'],['bienestar_pl','Bienestar general'],['piel_pl','Cuidado de la piel'],['preparacion','Preparación segura'],['interacciones','Interacciones y precauciones'],['no_interes_pl','No me interesa'],['otro_pl','Otro']])}</table>
+    <h3>Interés en taller de plantas medicinales (promedio: ${promCampo('interes_taller_plantas')}/5)</h3>
+    <table>${tablaHeader}${escalaTabla('interes_taller_plantas')}</table>
+    <h3>Interés en experiencia de aromaterapia (promedio: ${promCampo('interes_aromaterapia')}/5)</h3>
+    <table>${tablaHeader}${escalaTabla('interes_aromaterapia')}</table>
+    <h3>Otras actividades de interés</h3>
+    <table>${tablaHeader}${filaChecks('otras_actividades', [['masajes','Masajes o relajación corporal'],['pausas_activas','Pausas activas guiadas'],['meditacion','Meditación o mindfulness'],['yoga','Yoga o movimiento consciente'],['talleres_cocina','Talleres de cocina saludable'],['caminatas','Caminatas o actividad al aire libre'],['manualidades','Manualidades o actividades creativas'],['musica','Musicoterapia'],['otro_act','Otra']])}</table>
+
+    <h2>Sección 11 — Prioridades</h2>
+    <h3>Temas prioritarios de apoyo</h3>
+    <table>${tablaHeader}${filaChecks('temas_apoyo', [['alimentacion_pr','🥗 Alimentación saludable'],['energia_pr','⚡ Energía y fatiga'],['sueno_pr','😴 Sueño y descanso'],['estres_pr','🧘 Manejo del estrés'],['actividad_pr','🚶 Actividad física'],['plantas_pr','🌿 Plantas medicinales'],['aromaterapia_pr','🌸 Aromaterapia'],['salud_mental_pr','🧠 Salud mental'],['cardiovascular_pr','🫀 Prevención cardiovascular'],['equilibrio_pr','⚖️ Equilibrio vida-trabajo'],['hidratacion_pr','💧 Hidratación'],['digestiva_pr','🥦 Salud digestiva'],['otro_pr','Otro']])}</table>
+    <h3>Formatos preferidos</h3>
+    <table>${tablaHeader}${filaChecks('formato_preferido', [['charlas','Charlas breves'],['talleres_prac','Talleres prácticos'],['webinars','Webinars'],['presencial','Actividades presenciales'],['desafios','Desafíos de bienestar'],['material','Material educativo'],['recetarios','Recetarios'],['guias','Guías descargables'],['autocuidado_fmt','Actividades de autocuidado'],['evaluaciones_fmt','Evaluaciones individuales'],['programa_continuo','Programas de varias semanas'],['otro_fmt','Otro']])}</table>
+    <h3>Frecuencia deseada de participación</h3>
+    <table>${tablaHeader}${filaOpciones('frecuencia_participacion', ['Una actividad puntual','1 vez al mes','2 veces al mes','1 vez por semana','Me gustaría participar en un programa continuo','No me interesa participar actualmente'])}</table>
+
+    <h2>Sección 12 — Respuestas abiertas</h2>
+    ${abiertas('abierta_bienestar_jornada', '¿Qué afecta más tu bienestar durante la jornada?')}
+    ${abiertas('abierta_cambio_entorno', '¿Qué cambiarías de tu entorno laboral?')}
+    ${abiertas('abierta_temas_adicionales', '¿Qué tema adicional te gustaría que la empresa abordara?')}
+  `;
+}
+
+function generarHTMLGerencia(respuestas, empresa, sesion, fecha) {
+  const n = respuestas.length;
+
+  const bloques = respuestas.map((r, idx) => {
+    let d = {};
+    try { d = JSON.parse(r.autopercepcion_salud || '{}'); } catch(e) {}
+    const created = new Date(r.created_at).toLocaleDateString('es-CL');
+
+    const fila = (label, valor) => {
+      if (!valor || (Array.isArray(valor) && !valor.length)) return '';
+      const txt = Array.isArray(valor) ? valor.join(', ') : valor;
+      return `<tr><td style="width:45%;font-weight:600;color:#555;">${label}</td><td>${txt}</td></tr>`;
+    };
+
+    return `
+      <div class="resp-bloque">
+        <div class="resp-num">Respuesta ${idx + 1} · Recibida el ${created}</div>
+        ${d.org_empresa ? `<div style="font-size:15px;font-weight:700;color:#07542F;margin:8px 0;">${d.org_empresa}</div>` : ''}
+        <table>
+          ${fila('Contacto', d.org_contacto)} ${fila('Cargo', d.org_cargo)} ${fila('Email', d.org_email)} ${fila('Sede', d.org_sede)}
+          <tr><td colspan="2" style="padding:8px 0;font-weight:700;color:#07542F;background:none;">A. Contexto</td></tr>
+          ${fila('Nº trabajadores', d.num_trabajadores)} ${fila('Nº centros', d.num_centros)} ${fila('Tipos de turno', d.tipos_turno)} ${fila('Modalidad', d.modalidad)} ${fila('Rango etario', d.rango_etario)} ${fila('Sectores', d.sectores)} ${fila('Certificación empresa saludable', d.certificacion)} ${fila('Receptividad al autocuidado', d.receptividad)}
+          <tr><td colspan="2" style="padding:8px 0;font-weight:700;color:#07542F;background:none;">B. Estrategia</td></tr>
+          ${fila('Programa actual', d.tiene_estrategia)} ${fila('Frecuencia', d.frecuencia_bienestar)} ${fila('Áreas', d.areas_bienestar)} ${fila('Liderazgo', d.lider_bienestar)} ${fila('Presupuesto', d.presupuesto_existe)} ${fila('Rango presupuestario', d.presupuesto_rango)} ${fila('SENCE', d.tiene_sence)} ${fila('ChileCompra', d.tiene_chilecompra)}
+          <tr><td colspan="2" style="padding:8px 0;font-weight:700;color:#07542F;background:none;">C. Salud del equipo</td></tr>
+          ${fila('Problemas observados', d.problemas_salud)} ${fila('Sedentarismo visible', d.sedentarismo_visible)} ${fila('Ausentismo', d.ausentismo)} ${fila('Problemas de sueño', d.problemas_sueno)} ${fila('Hábitos alimentarios', d.habitos_alimentacion)} ${fila('Tiempos para alimentarse', d.tiempo_alimentacion)} ${fila('Tipo de alimentos', d.tipo_alimentos)} ${fila('Acceso a refrigerador', d.acceso_refrigerador)} ${fila('Tipo de casino', d.tipo_casino)} ${fila('Conformidad con casino', d.conformidad_casino)}
+          <tr><td colspan="2" style="padding:8px 0;font-weight:700;color:#07542F;background:none;">D. Entorno y participación</td></tr>
+          ${fila('Pausas activas', d.pausas_activas)} ${fila('Acceso a agua', d.acceso_agua)} ${fila('Espacios deporte', d.espacios_deporte)} ${fila('Infraestructura disponible', d.infraestructura)} ${fila('Dificultades por turnos', d.dificultades_turnos)} ${fila('Participación previa', d.participacion_prev)} ${fila('Actividades populares', d.actividades_populares)} ${fila('Dificultades participación', d.dificultades_participacion)}
+          <tr><td colspan="2" style="padding:8px 0;font-weight:700;color:#07542F;background:none;">E. Necesidades y medición</td></tr>
+          ${fila('Necesidades percibidas', d.necesidades_percibidas)} ${fila('Indicadores a mejorar', d.indicadores_mejorar)} ${fila('Mide bienestar', d.mide_bienestar)} ${fila('Indicadores actuales', d.indicadores_actuales)} ${fila('Evaluaciones previas', d.eval_prev)} ${fila('Datos históricos', d.tiene_historicos)} ${fila('Definición de éxito', d.exito_bienestar)}
+          <tr><td colspan="2" style="padding:8px 0;font-weight:700;color:#07542F;background:none;">F. Temas de interés (1–5)</td></tr>
+          ${fila('Alimentación saludable', d.tema_alimentacion)} ${fila('Manejo del estrés', d.tema_estres)} ${fila('Sueño y descanso', d.tema_sueno)} ${fila('Hidratación', d.tema_hidratacion)} ${fila('Energía laboral', d.tema_energia)} ${fila('Condiciones crónicas', d.tema_cronicas)} ${fila('Bienestar hormonal', d.tema_hormonal)} ${fila('Plantas medicinales', d.tema_plantas)} ${fila('Aromaterapia', d.tema_aromaterapia)} ${fila('Colaciones saludables', d.tema_colaciones)} ${fila('Check-up Nútrete', d.tema_checkup)}
+        </table>
+      </div>`;
+  }).join('');
+
+  return `
+    <h1>Respaldo de Diagnóstico Empresarial — Gerencia</h1>
+    <table><tr><td><strong>Empresa:</strong> ${empresa}</td><td><strong>Respuestas:</strong> ${n}</td><td><strong>Fecha de descarga:</strong> ${fecha}</td></tr></table>
+    ${bloques}
+  `;
+}
+
 // INIT — verificar sesión activa
 // ══════════════════════════════════════════════
 (async () => {
