@@ -766,7 +766,9 @@
     <!-- ══ SECCIÓN: ENCUESTAS ══ -->
     <div class="seccion" id="sec-encuestas">
       <div class="seccion-titulo">Encuestas</div>
-      <div class="seccion-subtitulo">Gestiona y envía encuestas a colaboradores</div>
+      <div class="seccion-subtitulo">Gestiona, envía y revisa resultados de encuestas</div>
+
+      <!-- Crear encuesta -->
       <div class="card">
         <div class="card-titulo">Crear encuesta</div>
         <div class="form-grid">
@@ -788,6 +790,8 @@
           </div>
         </div>
       </div>
+
+      <!-- Encuestas activas -->
       <div class="card">
         <div class="card-titulo">Encuestas activas</div>
         <div class="tabla-container">
@@ -806,6 +810,35 @@
               <tr><td colspan="6" class="loading">Cargando...</td></tr>
             </tbody>
           </table>
+        </div>
+      </div>
+
+      <!-- Ver resultados -->
+      <div class="card">
+        <div class="card-titulo">Ver resultados de encuesta</div>
+        <div class="form-grid">
+          <div class="campo">
+            <label>Encuesta</label>
+            <select id="resultado-encuesta-id" onchange="verResultadosEncuesta()">
+              <option value="">Selecciona una encuesta...</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Resultados colaboradores -->
+      <div id="resultados-colaboradores" style="display:none;">
+        <div class="card">
+          <div class="card-titulo">Resultados — Encuesta de colaboradores</div>
+          <div id="graficos-colaboradores"></div>
+        </div>
+      </div>
+
+      <!-- Resultados gerencia -->
+      <div id="resultados-gerencia" style="display:none;">
+        <div class="card">
+          <div class="card-titulo">Resultados — Diagnóstico organizacional (Gerencia)</div>
+          <div id="contenido-gerencia"></div>
         </div>
       </div>
     </div>
@@ -1492,6 +1525,170 @@ async function cargarEncuestas() {
       <td><button class="btn btn-outline btn-pequeño" onclick="cerrarEncuesta('${enc.id}')">Cerrar</button></td>
     </tr>`;
   }).join('');
+
+  // Llenar selector de resultados
+  const sel = document.getElementById('resultado-encuesta-id');
+  if (sel) {
+    sel.innerHTML = '<option value="">Selecciona una encuesta...</option>' +
+      data.map(enc =>
+        `<option value="${enc.id}" data-tipo="${enc.tipo}">${enc.evaluacion?.empresa?.nombre || '—'} — ${enc.tipo === 'colaborador' ? 'Colaboradores' : 'Gerencia'}</option>`
+      ).join('');
+  }
+}
+
+async function verResultadosEncuesta() {
+  const sel = document.getElementById('resultado-encuesta-id');
+  const encuestaId = sel.value;
+  const tipo = sel.options[sel.selectedIndex]?.dataset?.tipo;
+
+  document.getElementById('resultados-colaboradores').style.display = 'none';
+  document.getElementById('resultados-gerencia').style.display = 'none';
+
+  if (!encuestaId) return;
+
+  const { data: respuestas } = await sb.from('respuestas_encuesta')
+    .select('*')
+    .eq('encuesta_id', encuestaId);
+
+  if (!respuestas || !respuestas.length) {
+    mostrarToast('No hay respuestas aún para esta encuesta', false);
+    return;
+  }
+
+  if (tipo === 'colaborador') {
+    mostrarResultadosColaboradores(respuestas);
+  } else {
+    mostrarResultadosGerencia(respuestas);
+  }
+}
+
+function mostrarResultadosColaboradores(respuestas) {
+  const n = respuestas.length;
+  const cont = document.getElementById('graficos-colaboradores');
+  document.getElementById('resultados-colaboradores').style.display = 'block';
+
+  const prom = (key) => {
+    const vals = respuestas.map(r => r[key]).filter(v => v !== null && v !== undefined);
+    return vals.length ? (vals.reduce((a,b) => a+b, 0) / vals.length).toFixed(1) : '—';
+  };
+
+  const contarOpcion = (key, opcion) => respuestas.filter(r => r[key] === opcion).length;
+  const pct = (count) => n ? Math.round(count/n*100) : 0;
+
+  const barra = (label, count, color='#009444') => `
+    <div style="margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;">
+        <span>${label}</span><span style="font-weight:700;">${count} (${pct(count)}%)</span>
+      </div>
+      <div style="height:20px;background:#f0f0f0;border-radius:4px;overflow:hidden;">
+        <div style="width:${pct(count)}%;height:100%;background:${color};border-radius:4px;transition:width 0.5s;"></div>
+      </div>
+    </div>`;
+
+  cont.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:28px;">
+      <div class="stat-card"><div class="stat-numero">${n}</div><div class="stat-label">Respuestas recibidas</div></div>
+      <div class="stat-card"><div class="stat-numero">${prom('nivel_estres')}</div><div class="stat-label">Estrés promedio (1–5)</div></div>
+      <div class="stat-card"><div class="stat-numero">${prom('bienestar_general')}</div><div class="stat-label">Bienestar promedio (1–5)</div></div>
+      <div class="stat-card"><div class="stat-numero">${prom('calidad_alimentacion_percibida')}</div><div class="stat-label">Alimentación percibida (1–5)</div></div>
+    </div>
+
+    <div style="font-size:13px;font-weight:700;color:var(--verde-oscuro);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">Estrés percibido</div>
+    ${[1,2,3,4,5].map(n => barra(`Nivel ${n}`, contarOpcion('nivel_estres', n), n<=2?'#009444':n===3?'#e67e22':'#c0392b')).join('')}
+
+    <div style="font-size:13px;font-weight:700;color:var(--verde-oscuro);text-transform:uppercase;letter-spacing:0.5px;margin:20px 0 12px;">Bienestar general</div>
+    ${[1,2,3,4,5].map(n => barra(`Nivel ${n}`, contarOpcion('bienestar_general', n), n>=4?'#009444':n===3?'#e67e22':'#c0392b')).join('')}
+
+    <div style="font-size:13px;font-weight:700;color:var(--verde-oscuro);text-transform:uppercase;letter-spacing:0.5px;margin:20px 0 12px;">Frecuencia de desayuno</div>
+    ${['Todos los días','Casi siempre','A veces','Casi nunca','Nunca'].map(o => barra(o, contarOpcion('frecuencia_desayuno', o))).join('')}
+
+    <div style="font-size:13px;font-weight:700;color:var(--verde-oscuro);text-transform:uppercase;letter-spacing:0.5px;margin:20px 0 12px;">Actividad física</div>
+    ${['Todos los días','3-4 veces por semana','1-2 veces por semana','Casi nunca','Nunca'].map(o => barra(o, contarOpcion('actividad_fisica_frecuencia', o))).join('')}
+
+    <div style="font-size:13px;font-weight:700;color:var(--verde-oscuro);text-transform:uppercase;letter-spacing:0.5px;margin:20px 0 12px;">Horas de sueño</div>
+    ${[4.5,5.5,7.5,8.5].map((v,i) => barra(['Menos de 5h','5-6h','7-8h','Más de 8h'][i], respuestas.filter(r=>r.horas_sueno===v).length)).join('')}
+
+    <div style="font-size:13px;font-weight:700;color:var(--verde-oscuro);text-transform:uppercase;letter-spacing:0.5px;margin:20px 0 12px;">Calidad de alimentación percibida</div>
+    ${[1,2,3,4,5].map(n => barra(`Nivel ${n}`, contarOpcion('calidad_alimentacion_percibida', n), n>=4?'#009444':n===3?'#e67e22':'#c0392b')).join('')}
+
+    <div style="font-size:13px;font-weight:700;color:var(--verde-oscuro);text-transform:uppercase;letter-spacing:0.5px;margin:20px 0 12px;">Autopercepción de salud</div>
+    ${['Muy bueno','Bueno','Regular','Malo'].map(o => barra(o, contarOpcion('autopercepcion_salud', o))).join('')}
+
+    <div style="font-size:13px;font-weight:700;color:var(--verde-oscuro);text-transform:uppercase;letter-spacing:0.5px;margin:20px 0 12px;">Intereses declarados</div>
+    ${[
+      ['interes_aromaterapia','Aromaterapia y plantas medicinales'],
+      ['interes_fitoterapia','Fitoterapia y hierbas'],
+      ['interes_checkup','Check-up Nútrete (bioimpedancia)'],
+      ['interes_talleres','Talleres de alimentación saludable'],
+    ].map(([key, label]) => barra(label, respuestas.filter(r=>r[key]===true).length)).join('')}
+
+    <div style="font-size:13px;font-weight:700;color:var(--verde-oscuro);text-transform:uppercase;letter-spacing:0.5px;margin:20px 0 12px;">Disposición al Check-up</div>
+    ${barra('Sí, me interesa', respuestas.filter(r=>r.disposicion_checkup===true).length, '#009444')}
+    ${barra('No o tal vez', respuestas.filter(r=>r.disposicion_checkup===false).length, '#e67e22')}
+  `;
+}
+
+function mostrarResultadosGerencia(respuestas) {
+  const cont = document.getElementById('contenido-gerencia');
+  document.getElementById('resultados-gerencia').style.display = 'block';
+
+  if (!respuestas.length) { cont.innerHTML = '<p>Sin respuestas.</p>'; return; }
+
+  // Tomar la última respuesta (gerencia suele ser una sola)
+  const r = respuestas[respuestas.length - 1];
+  let datos = {};
+  try { datos = JSON.parse(r.autopercepcion_salud || '{}'); } catch(e) {}
+
+  const fila = (label, valor) => valor ? `
+    <div style="padding:10px 0;border-bottom:1px solid var(--gris-borde);display:flex;gap:16px;">
+      <div style="font-size:13px;font-weight:600;color:var(--texto-suave);min-width:220px;">${label}</div>
+      <div style="font-size:14px;color:var(--texto);">${Array.isArray(valor) ? valor.join(', ') : valor}</div>
+    </div>` : '';
+
+  cont.innerHTML = `
+    <div style="font-size:12px;color:var(--texto-suave);margin-bottom:20px;">${respuestas.length} respuesta(s) recibida(s)</div>
+
+    <div style="font-size:13px;font-weight:700;color:var(--verde-oscuro);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">A. Empresa</div>
+    ${fila('Nº trabajadores', datos.num_trabajadores)}
+    ${fila('Nº centros/sedes', datos.num_centros)}
+    ${fila('Tipo de jornada', datos.tipo_jornada)}
+    ${fila('Sistema de turnos', datos.tiene_turnos)}
+
+    <div style="font-size:13px;font-weight:700;color:var(--verde-oscuro);text-transform:uppercase;letter-spacing:0.5px;margin:20px 0 8px;">1. Estrategia de bienestar</div>
+    ${fila('Estrategia actual', datos.tiene_estrategia)}
+    ${fila('Áreas que aborda', datos.areas_bienestar)}
+    ${fila('Frecuencia de actividades', datos.frecuencia_bienestar)}
+    ${fila('Presupuesto', datos.presupuesto)}
+    ${fila('Liderazgo', datos.lider_bienestar)}
+
+    <div style="font-size:13px;font-weight:700;color:var(--verde-oscuro);text-transform:uppercase;letter-spacing:0.5px;margin:20px 0 8px;">2. Participación</div>
+    ${fila('Participación previa', datos.participacion_prev)}
+    ${fila('Actividades más populares', datos.actividades_populares)}
+    ${fila('Diferencias por área/cargo', datos.diferencias_participacion)}
+    ${fila('Dificultades para participar', datos.dificultades_participacion)}
+
+    <div style="font-size:13px;font-weight:700;color:var(--verde-oscuro);text-transform:uppercase;letter-spacing:0.5px;margin:20px 0 8px;">3. Necesidades percibidas</div>
+    ${fila('Principales necesidades', datos.necesidades_percibidas)}
+
+    <div style="font-size:13px;font-weight:700;color:var(--verde-oscuro);text-transform:uppercase;letter-spacing:0.5px;margin:20px 0 8px;">4. Entorno laboral</div>
+    ${fila('Casino/comedor', datos.tiene_casino)}
+    ${fila('Disponibilidad de alimentos saludables', datos.disponibilidad_saludable)}
+    ${fila('Pausas activas', datos.pausas_activas)}
+    ${fila('Acceso a agua', datos.acceso_agua)}
+    ${fila('Espacios para actividad física', datos.espacios_deporte)}
+    ${fila('Dificultades por turnos', datos.dificultades_turnos)}
+
+    <div style="font-size:13px;font-weight:700;color:var(--verde-oscuro);text-transform:uppercase;letter-spacing:0.5px;margin:20px 0 8px;">5. Percepción de RRHH</div>
+    ${fila('Indicadores a mejorar', datos.indicadores_mejorar)}
+    ${fila('Ausentismo', datos.ausentismo)}
+    ${fila('Definición de éxito', datos.exito_bienestar)}
+
+    <div style="font-size:13px;font-weight:700;color:var(--verde-oscuro);text-transform:uppercase;letter-spacing:0.5px;margin:20px 0 8px;">6. Medición actual</div>
+    ${fila('Mide indicadores de bienestar', datos.mide_bienestar)}
+    ${fila('Indicadores que miden', datos.indicadores_actuales)}
+    ${fila('Evaluaciones previas', datos.eval_prev)}
+    ${fila('Datos históricos disponibles', datos.tiene_historicos)}
+  `;
 }
 
 async function cargarColaboradores() {
