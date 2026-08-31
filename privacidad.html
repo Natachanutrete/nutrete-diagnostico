@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Política de Privacidad y Protección de Datos — Nútrete EIRL</title>
+<style>
+  :root {
+    --verde: #009444;
+    --verde-oscuro: #07542F;
+    --cafe: #6A3F15;
+    --texto: #1a1a1a;
+    --texto-suave: #555;
+    --borde: #e0e0e0;
+    --fondo: #f8f9f8;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: Georgia, 'Times New Roman', serif;
+    background: var(--fondo);
+    color: var(--texto);
+    font-size: 16px;
+    line-height: 1.75;
+  }
+
+  .topbar {
+    background: var(--verde-oscuro);
+    padding: 14px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .topbar-marca {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 18px;
+    font-weight: 800;
+    color: white;
+    letter-spacing: -0.3px;
+    text-decoration: none;
+  }
+
+  .topbar-marca span {
+    display: inline-block;
+    width: 7px; height: 7px;
+    background: #7fc89a;
+    border-radius: 50%;
+    margin-left: 2px;
+    vertical-align: middle;
+  }
+
+  .topbar-link {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 13px;
+    color: #a8d5b8;
+    text-decoration: none;
+  }
+
+  .topbar-link:hover { color: white; }
+
+  .portada {
+    background: var(--verde-oscuro);
+    padding: 56px 32px 48px;
+    text-align: center;
+  }
+
+  .portada-tag {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #7fc89a;
+    margin-bottom: 16px;
+  }
+
+  .portada h1 {
+    font-size: 30px;
+    font-weight: normal;
+    color: white;
+    line-height: 1.3;
+    max-width: 560px;
+    margin: 0 auto 16px;
+  }
+
+  .portada-meta {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 13px;
+    color: #a8d5b8;
+    margin-top: 20px;
+  }
+
+  .contenido {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 48px 24px 80px;
+  }
+
+  .intro-box {
+    background: white;
+    border-left: 4px solid var(--verde);
+    padding: 20px 24px;
+    margin-bottom: 40px;
+    border-radius: 0 6px 6px 0;
+    font-size: 15px;
+    color: var(--texto-suave);
+    line-height: 1.7;
+  }
+
+  h2 {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--verde-oscuro);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin: 40px 0 14px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--borde);
+  }
+
+  h2:first-of-type { margin-top: 0; }
+
+  p {
+    margin-bottom: 16px;
+    color: var(--texto-suave);
+    font-size: 15px;
+  }
+
+  p strong { color: var(--texto); font-weight: 600; }
+
+  ul, ol {
+    padding-left: 20px;
+    margin-bottom: 16px;
+  }
+
+  li {
+    color: var(--texto-suave);
+    font-size: 15px;
+    margin-bottom: 8px;
+    line-height: 1.65;
+  }
+
+  li strong { color: var(--texto); }
+
+  .dato {
+    display: flex;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--borde);
+    font-size: 14px;
+  }
+
+  .dato:last-child { border-bottom: none; }
+
+  .dato-label {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--texto-suave);
+    min-width: 200px;
+    flex-shrink: 0;
+    padding-top: 1px;
+  }
+
+  .dato-valor { color: var(--texto); }
+
+  .alerta {
+    background: #f0f7f3;
+    border: 1px solid #c8ebd5;
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin: 24px 0;
+    font-size: 14px;
+    color: var(--verde-oscuro);
+    line-height: 1.65;
+  }
+
+  .alerta strong { font-weight: 700; }
+
+  .tabla-derechos {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0 24px;
+    font-size: 14px;
+  }
+
+  .tabla-derechos th {
+    text-align: left;
+    padding: 10px 14px;
+    background: var(--verde-oscuro);
+    color: white;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .tabla-derechos td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--borde);
+    color: var(--texto-suave);
+    vertical-align: top;
+  }
+
+  .tabla-derechos tr:nth-child(even) td { background: #f8f9f8; }
+  .tabla-derechos tr:last-child td { border-bottom: none; }
+
+  .derecho-nombre { font-weight: 600; color: var(--texto); }
+
+  .version {
+    margin-top: 48px;
+    padding-top: 20px;
+    border-top: 1px solid var(--borde);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 12px;
+    color: #999;
+    text-align: center;
+  }
+
+  .footer {
+    background: var(--verde-oscuro);
+    color: #a8d5b8;
+    text-align: center;
+    padding: 24px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 12px;
+    line-height: 1.8;
+  }
+
+  .footer strong { color: white; }
+
+  a { color: var(--verde); }
+  a:hover { color: var(--verde-oscuro); }
+
+  @media (max-width: 560px) {
+    .portada h1 { font-size: 22px; }
+    .dato { flex-direction: column; gap: 4px; }
+    .dato-label { min-width: auto; }
+    .tabla-derechos { font-size: 13px; }
+  }
+
+  @media print {
+    .topbar, .footer { display: none; }
+    body { background: white; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a href="https://www.nutrete.cl" class="topbar-marca">Nútrete<span></span></a>
+  <a href="https://www.nutrete.cl" class="topbar-link">← Volver al sitio</a>
+</div>
+
+<div class="portada">
+  <div class="portada-tag">Nútrete EIRL · Documento legal</div>
+  <h1>Política de Privacidad y Protección de Datos Personales</h1>
+  <div class="portada-meta">Vigente desde el 1 de septiembre de 2026 · Última actualización: septiembre 2026</div>
+</div>
+
+<div class="contenido">
+
+  <div class="intro-box">
+    En Nútrete EIRL nos comprometemos con el uso ético, responsable y transparente de los datos personales que recopilamos en el ejercicio de nuestra actividad. Este documento explica qué información recopilamos, cómo la usamos, quién puede acceder a ella y cuáles son sus derechos como titular de esos datos.
+  </div>
+
+  <!-- 1 -->
+  <h2>1. Identidad del responsable del tratamiento</h2>
+
+  <div class="dato"><div class="dato-label">Razón social</div><div class="dato-valor">Nútrete EIRL</div></div>
+  <div class="dato"><div class="dato-label">RUT</div><div class="dato-valor">76.702.594-7</div></div>
+  <div class="dato"><div class="dato-label">Representante legal</div><div class="dato-valor">Natacha González Sepúlveda</div></div>
+  <div class="dato"><div class="dato-label">Actividad</div><div class="dato-valor">Asesoría en nutrición, bienestar corporativo y educación alimentaria</div></div>
+  <div class="dato"><div class="dato-label">Domicilio</div><div class="dato-valor">Ñuñoa, Santiago de Chile</div></div>
+  <div class="dato"><div class="dato-label">Sitio web</div><div class="dato-valor"><a href="https://www.nutrete.cl" target="_blank">www.nutrete.cl</a></div></div>
+  <div class="dato"><div class="dato-label">Contacto de privacidad</div><div class="dato-valor"><a href="mailto:contacto@nutrete.cl">contacto@nutrete.cl</a></div></div>
+
+  <!-- 2 -->
+  <h2>2. Marco legal aplicable</h2>
+
+  <p>El tratamiento de datos personales realizado por Nútrete EIRL se rige por la <strong>Ley N° 19.628 sobre Protección de la Vida Privada</strong> de la República de Chile y sus modificaciones vigentes, así como por los principios de licitud, finalidad, proporcionalidad, calidad y seguridad que dicha ley establece.</p>
+
+  <!-- 3 -->
+  <h2>3. Datos que recopilamos y finalidad de su uso</h2>
+
+  <p>Nútrete EIRL recopila datos personales exclusivamente en el marco de su actividad profesional de bienestar corporativo. Los datos tratados y sus finalidades son los siguientes:</p>
+
+  <p><strong>3.1 Diagnóstico Empresarial de Bienestar (encuesta de gerencia)</strong></p>
+  <ul>
+    <li><strong>Datos recopilados:</strong> nombre de la persona de contacto, cargo, correo electrónico, nombre de la empresa y sede/ubicación.</li>
+    <li><strong>Finalidad:</strong> identificar las necesidades de bienestar de la organización y elaborar una propuesta de programa personalizada.</li>
+    <li><strong>Base de legitimación:</strong> consentimiento expreso del titular, otorgado al completar y enviar el formulario.</li>
+  </ul>
+
+  <p><strong>3.2 Encuesta de colaboradores (anónima)</strong></p>
+  <ul>
+    <li><strong>Datos recopilados:</strong> respuestas sobre hábitos de alimentación, actividad física, sueño, niveles de estrés, bienestar percibido e intereses de autocuidado.</li>
+    <li><strong>Finalidad:</strong> elaborar un diagnóstico grupal anónimo para la empresa que contrató el programa.</li>
+    <li><strong>Anonimato:</strong> estas respuestas no contienen nombre, RUT ni ningún dato identificador. No es posible vincular una respuesta a una persona específica.</li>
+  </ul>
+
+  <p><strong>3.3 Check-up Nútrete (evaluación nutricional individual)</strong></p>
+  <ul>
+    <li><strong>Datos recopilados:</strong> datos de composición corporal (peso, talla, masa grasa, masa muscular, entre otros), presión arterial, glicemia capilar, edad, sexo biológico y área de trabajo.</li>
+    <li><strong>Finalidad:</strong> elaborar una ficha individual de evaluación nutricional y un informe grupal anónimo para la empresa.</li>
+    <li><strong>Identificación:</strong> los datos individuales se registran bajo un código interno, no bajo el nombre real del colaborador. El informe entregado a la empresa es siempre anónimo y agregado.</li>
+    <li><strong>Base de legitimación:</strong> consentimiento expreso del colaborador al momento de la evaluación.</li>
+  </ul>
+
+  <!-- 4 -->
+  <h2>4. Quién accede a los datos</h2>
+
+  <ul>
+    <li><strong>Natacha González Sepúlveda</strong> (nutricionista responsable): acceso completo para elaborar diagnósticos y propuestas.</li>
+    <li><strong>Asistentes o colaboradores de Nútrete EIRL</strong> que participen en la ejecución del programa: acceso restringido a lo estrictamente necesario.</li>
+    <li><strong>La empresa contratante</strong> recibe únicamente informes grupales anónimos. Nunca tiene acceso a los datos individuales de sus colaboradores.</li>
+    <li><strong>Proveedores tecnológicos</strong>: los datos se almacenan en servidores de <a href="https://supabase.com/privacy" target="_blank">Supabase</a> (base de datos, con servidores en Estados Unidos) y se alojan en <a href="https://vercel.com/legal/privacy-policy" target="_blank">Vercel</a> (plataforma de hospedaje web). Ambos proveedores cumplen estándares internacionales de seguridad.</li>
+  </ul>
+
+  <div class="alerta">
+    <strong>Importante:</strong> Nútrete EIRL no vende, arrienda ni cede datos personales a terceros bajo ninguna circunstancia. Los datos recopilados se utilizan exclusivamente para los fines declarados en este documento.
+  </div>
+
+  <!-- 5 -->
+  <h2>5. Plazo de conservación de los datos</h2>
+
+  <ul>
+    <li>Los datos del <strong>Diagnóstico Empresarial</strong> se conservan durante la vigencia de la relación contractual con la organización y hasta 2 años después de su término.</li>
+    <li>Los datos del <strong>Check-up individual</strong> se conservan por el período que dure el programa de bienestar contratado y hasta 1 año después de su finalización.</li>
+    <li>Las <strong>respuestas anónimas</strong> de la encuesta de colaboradores pueden conservarse de forma indefinida al no contener datos identificadores.</li>
+    <li>Transcurridos estos plazos, los datos serán eliminados de forma segura.</li>
+  </ul>
+
+  <!-- 6 -->
+  <h2>6. Sus derechos como titular de datos</h2>
+
+  <p>De acuerdo con la Ley N° 19.628 y sus modificaciones, usted tiene derecho a:</p>
+
+  <table class="tabla-derechos">
+    <thead>
+      <tr>
+        <th style="width:30%">Derecho</th>
+        <th>Descripción</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><div class="derecho-nombre">Acceso</div></td>
+        <td>Solicitar información sobre qué datos suyos tenemos registrados y cómo los usamos.</td>
+      </tr>
+      <tr>
+        <td><div class="derecho-nombre">Rectificación</div></td>
+        <td>Solicitar la corrección de datos incorrectos, incompletos o desactualizados.</td>
+      </tr>
+      <tr>
+        <td><div class="derecho-nombre">Cancelación</div></td>
+        <td>Solicitar la eliminación de sus datos cuando ya no sean necesarios para la finalidad por la que fueron recopilados.</td>
+      </tr>
+      <tr>
+        <td><div class="derecho-nombre">Oposición</div></td>
+        <td>Oponerse al tratamiento de sus datos en determinadas circunstancias.</td>
+      </tr>
+      <tr>
+        <td><div class="derecho-nombre">Revocación del consentimiento</div></td>
+        <td>Retirar en cualquier momento el consentimiento otorgado, sin que ello afecte la licitud del tratamiento previo.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p>Para ejercer cualquiera de estos derechos, puede escribirnos a <a href="mailto:contacto@nutrete.cl">contacto@nutrete.cl</a> con el asunto <em>"Protección de datos personales"</em>. Responderemos su solicitud dentro de un plazo máximo de 15 días hábiles.</p>
+
+  <!-- 7 -->
+  <h2>7. Seguridad de los datos</h2>
+
+  <p>Nútrete EIRL implementa medidas técnicas y organizativas para proteger los datos personales contra acceso no autorizado, pérdida, destrucción o divulgación. Entre estas medidas se incluyen:</p>
+
+  <ul>
+    <li>Acceso a la plataforma protegido mediante autenticación con contraseña.</li>
+    <li>Transmisión de datos cifrada mediante protocolo HTTPS.</li>
+    <li>Separación de datos por empresa mediante políticas de seguridad a nivel de base de datos (Row Level Security).</li>
+    <li>Acceso restringido por roles: cada usuario solo ve los datos que le corresponden.</li>
+  </ul>
+
+  <!-- 8 -->
+  <h2>8. Transferencia internacional de datos</h2>
+
+  <p>Los datos son almacenados en servidores ubicados en Estados Unidos, operados por Supabase Inc. Esta transferencia se realiza con las garantías adecuadas conforme a los estándares de seguridad internacionales. Al aceptar esta política, usted consiente expresamente dicha transferencia.</p>
+
+  <!-- 9 -->
+  <h2>9. Cookies y tecnologías de seguimiento</h2>
+
+  <p>La plataforma de diagnóstico de Nútrete (<em>nutrete-diagnostico.vercel.app</em>) no utiliza cookies de seguimiento ni tecnologías de publicidad. Únicamente utiliza las sesiones necesarias para el funcionamiento del sistema de autenticación.</p>
+
+  <!-- 10 -->
+  <h2>10. Modificaciones a esta política</h2>
+
+  <p>Nútrete EIRL se reserva el derecho de actualizar esta Política de Privacidad cuando sea necesario, ya sea por cambios en la legislación aplicable o en nuestras prácticas de tratamiento de datos. Cualquier modificación relevante será comunicada a través de nuestro sitio web <a href="https://www.nutrete.cl" target="_blank">www.nutrete.cl</a> con al menos 15 días de anticipación.</p>
+
+  <!-- 11 -->
+  <h2>11. Contacto</h2>
+
+  <p>Para consultas, solicitudes o reclamos relacionados con el tratamiento de sus datos personales, puede contactarnos en:</p>
+
+  <div class="dato"><div class="dato-label">Correo electrónico</div><div class="dato-valor"><a href="mailto:contacto@nutrete.cl">contacto@nutrete.cl</a></div></div>
+  <div class="dato"><div class="dato-label">Sitio web</div><div class="dato-valor"><a href="https://www.nutrete.cl" target="_blank">www.nutrete.cl</a></div></div>
+  <div class="dato"><div class="dato-label">Responsable</div><div class="dato-valor">Natacha González Sepúlveda · Nútrete EIRL</div></div>
+
+  <div class="version">
+    Versión 1.0 · Vigente desde el 1 de septiembre de 2026<br>
+    Nútrete EIRL · RUT 76.702.594-7 · Ñuñoa, Santiago de Chile
+  </div>
+
+</div>
+
+<div class="footer">
+  <strong>Nútrete EIRL</strong> · Natacha González Sepúlveda, Nutricionista<br>
+  <a href="https://www.nutrete.cl" style="color:#7fc89a;">www.nutrete.cl</a> · contacto@nutrete.cl<br>
+  El Método Nútrete® desarrolla el Criterio para la Salud
+</div>
+
+</body>
+</html>
