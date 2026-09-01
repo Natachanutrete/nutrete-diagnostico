@@ -851,8 +851,9 @@
 
       <!-- Sub-tabs -->
       <div style="display:flex;gap:4px;background:white;border-radius:var(--radio);padding:5px;margin-bottom:24px;box-shadow:var(--sombra);border:1px solid var(--gris-borde);">
-        <button class="tab activo" id="subtab-scoring" onclick="cambiarSubtab('scoring')" style="flex:1;">🧠 Motor Nútrete® — Scoring</button>
-        <button class="tab" id="subtab-diagnostico" onclick="cambiarSubtab('diagnostico')" style="flex:1;">📊 Diagnóstico Check-up</button>
+        <button class="tab activo" id="subtab-scoring" onclick="cambiarSubtab('scoring')" style="flex:1;">🧠 Motor Nútrete®</button>
+        <button class="tab" id="subtab-diagnostico" onclick="cambiarSubtab('diagnostico')" style="flex:1;">📊 Check-up</button>
+        <button class="tab" id="subtab-integrado" onclick="cambiarSubtab('integrado')" style="flex:1;">🔬 Diagnóstico integrado</button>
       </div>
 
       <!-- Sub-sección: Scoring -->
@@ -888,6 +889,25 @@
           </div>
         </div>
         <div id="informe-contenido" style="display:none;"></div>
+      </div>
+
+      <!-- Sub-sección: Diagnóstico Integrado -->
+      <div id="sub-integrado" style="display:none;">
+        <div class="card">
+          <div class="card-titulo">Seleccionar evaluación para diagnóstico integrado</div>
+          <div class="form-grid">
+            <div class="campo">
+              <label>Evaluación</label>
+              <select id="integrado-evaluacion-id">
+                <option value="">Selecciona una evaluación...</option>
+              </select>
+            </div>
+            <div class="campo" style="align-self:end;">
+              <button class="btn btn-verde" onclick="generarDiagnosticoIntegrado()">▶ Generar diagnóstico</button>
+            </div>
+          </div>
+        </div>
+        <div id="integrado-resultado" style="display:none;"></div>
       </div>
     </div>
 
@@ -1275,6 +1295,18 @@ let empresaActual = null;
 let todasEmpresas = [];
 let todasEvaluaciones = [];
 
+// Cache del diagnóstico integrado — se llena desde Motor Nútrete y Check-up
+let _cacheIntegrado = {
+  evalId: null,
+  scoring: null,
+  datosColabs: [],
+  ckupArr: [],
+  colsArr: [],
+  datosGerencia: null,
+  scoringEncuestaId: null,
+  checkupEvalId: null,
+};
+
 // ══════════════════════════════════════════════
 // AUTH
 // ══════════════════════════════════════════════
@@ -1474,10 +1506,13 @@ function renderScoringCompleto(scoring, empresa) {
 }
 
 function cambiarSubtab(id) {
-  ['scoring','diagnostico'].forEach(t => {
-    document.getElementById(`sub-${t}`).style.display = t === id ? 'block' : 'none';
-    document.getElementById(`subtab-${t}`)?.classList.toggle('activo', t === id);
+  ['scoring','diagnostico','integrado'].forEach(t => {
+    const el = document.getElementById(`sub-${t}`);
+    if (el) el.style.display = t === id ? 'block' : 'none';
+    const btn = document.getElementById(`subtab-${t}`);
+    if (btn) btn.classList.toggle('activo', t === id);
   });
+  if (id === 'integrado') llenarSelectorIntegrado();
 }
 
 async function ejecutarMotorScoring() {
@@ -1505,7 +1540,22 @@ async function ejecutarMotorScoring() {
   });
 
   const scoring = NutreteScoring.calcularScoringCompleto(datos);
+
+  // Guardar en cache para el diagnóstico integrado
+  _cacheIntegrado.scoring = scoring;
+  _cacheIntegrado.datosColabs = datos;
+  _cacheIntegrado.scoringEncuestaId = encuestaId;
+
+  // Buscar evaluacion_id desde la encuesta para sincronizar el selector integrado
+  const { data: encData } = await sb.from('encuestas').select('evaluacion_id').eq('id', encuestaId).single();
+  if (encData?.evaluacion_id) {
+    _cacheIntegrado.evalId = encData.evaluacion_id;
+    sincronizarSelectorIntegrado(encData.evaluacion_id);
+  }
+
   resultado.innerHTML = `<div class="card">${renderScoringCompleto(scoring, empresa)}</div>`;
+
+  mostrarToast('✓ Datos guardados — disponibles en Diagnóstico integrado');
 }
 
 function cambiarTab(id) {
@@ -2793,7 +2843,15 @@ async function generarInforme() {
     return;
   }
 
-  const resultados = cols.map(c => ({ ...c.resultados_checkup?.[0], area: c.area })).filter(r => r.colaborador_id);
+  const resultados = cols.map(c => ({ ...c.resultados_checkup?.[0], area: c.area, _sexo: c.sexo })).filter(r => r.colaborador_id);
+
+  // Guardar en cache para el diagnóstico integrado
+  _cacheIntegrado.evalId = evalId;
+  _cacheIntegrado.ckupArr = resultados;
+  _cacheIntegrado.colsArr = cols;
+  _cacheIntegrado.checkupEvalId = evalId;
+  sincronizarSelectorIntegrado(evalId);
+  mostrarToast('✓ Check-up guardado — disponible en Diagnóstico integrado');
   const n = resultados.length;
   const nEnc = respuestasEncuesta.length;
   const empresa = evaluacion?.empresa?.nombre || 'Empresa';
@@ -3346,6 +3404,640 @@ async function eliminarUsuario(id) {
 
 // ══════════════════════════════════════════════
 // ══════════════════════════════════════════════
+// ══════════════════════════════════════════════
+// DIAGNÓSTICO INTEGRADO
+// ══════════════════════════════════════════════
+
+function sincronizarSelectorIntegrado(evalId) {
+  const sel = document.getElementById('integrado-evaluacion-id');
+  if (sel && evalId) {
+    // Preseleccionar la evaluación en el selector integrado
+    for (let i = 0; i < sel.options.length; i++) {
+      if (sel.options[i].value === evalId) {
+        sel.value = evalId;
+        break;
+      }
+    }
+  }
+}
+
+async function generarDiagnosticoIntegrado() {
+  const sel = document.getElementById('integrado-evaluacion-id');
+  const evalId = sel.value;
+  const resultado = document.getElementById('integrado-resultado');
+  if (!evalId) { mostrarToast('Selecciona una evaluación primero', true); return; }
+
+  resultado.style.display = 'block';
+  resultado.innerHTML = '<div class="loading"><div class="spinner"></div>Integrando datos...</div>';
+
+  const ev = todasEvaluaciones.find(e => e.id === evalId);
+  const empresa = ev?.empresa?.nombre || '—';
+
+  // ── Usar cache si corresponde a la misma evaluación, sino cargar ──
+  let scoring = (_cacheIntegrado.evalId === evalId) ? _cacheIntegrado.scoring : null;
+  let datosColabs = (_cacheIntegrado.evalId === evalId) ? _cacheIntegrado.datosColabs : [];
+  let ckupArr = (_cacheIntegrado.evalId === evalId) ? _cacheIntegrado.ckupArr : [];
+  let colsArr = (_cacheIntegrado.evalId === evalId) ? _cacheIntegrado.colsArr : [];
+  let datosGerencia = (_cacheIntegrado.evalId === evalId) ? _cacheIntegrado.datosGerencia : null;
+
+  // Cargar lo que falte
+  const MIN_N = 5;
+  const necesitaCols = colsArr.length === 0;
+  const necesitaColabs = datosColabs.length === 0;
+  const necesitaGer = datosGerencia === null;
+
+  if (necesitaCols) {
+    const { data: cols } = await sb.from('colaboradores').select('id, codigo, sexo, edad, area').eq('evaluacion_id', evalId);
+    colsArr = cols || [];
+
+    if (colsArr.length && ckupArr.length === 0) {
+      const { data: ck } = await sb.from('resultados_checkup')
+        .select('colaborador_id, imc, masa_grasa_pct, masa_muscular_kg, agua_corporal_pct, grasa_visceral, edad_metabolica, circunferencia_cintura_cm, circunferencia_cadera_cm, icc, presion_sistolica, presion_diastolica, glicemia_capilar, semaforo_imc, semaforo_grasa_pct, semaforo_grasa_visceral, semaforo_presion, semaforo_glicemia, peso_kg, talla_cm')
+        .in('colaborador_id', colsArr.map(c => c.id));
+      ckupArr = (ck || []).map(r => {
+        const col = colsArr.find(c => c.id === r.colaborador_id);
+        return { ...r, _area: col?.area, _sexo: col?.sexo };
+      });
+    }
+  }
+
+  if (necesitaColabs) {
+    const { data: encColabs } = await sb.from('encuestas').select('id').eq('evaluacion_id', evalId).eq('tipo', 'colaborador');
+    if (encColabs?.length) {
+      const { data: respColabs } = await sb.from('respuestas_encuesta').select('autopercepcion_salud').in('encuesta_id', encColabs.map(e => e.id));
+      datosColabs = (respColabs || []).map(r => { try { return JSON.parse(r.autopercepcion_salud || '{}'); } catch { return {}; } });
+      if (datosColabs.length >= MIN_N && !scoring) {
+        scoring = NutreteScoring.calcularScoringCompleto(datosColabs);
+      }
+    }
+  }
+
+  if (necesitaGer) {
+    const { data: encGer } = await sb.from('encuestas').select('id').eq('evaluacion_id', evalId).eq('tipo', 'gerencia').order('created_at', { ascending: false }).limit(1);
+    if (encGer?.length) {
+      const { data: respGer } = await sb.from('respuestas_encuesta').select('autopercepcion_salud').eq('encuesta_id', encGer[0].id).limit(1);
+      if (respGer?.length) { try { datosGerencia = JSON.parse(respGer[0].autopercepcion_salud || '{}'); } catch { datosGerencia = {}; } }
+    }
+  }
+
+  // Actualizar cache
+  _cacheIntegrado = { evalId, scoring, datosColabs, ckupArr, colsArr, datosGerencia, scoringEncuestaId: _cacheIntegrado.scoringEncuestaId, checkupEvalId: _cacheIntegrado.checkupEvalId };
+
+  const nEnc = datosColabs.length;
+  const nCk = ckupArr.length;
+  const ck = calcularCkupIntegrado(ckupArr, colsArr);
+
+  resultado.innerHTML = renderDiagnosticoIntegrado({ ev, empresa, colsArr, ckupArr, ck, datosColabs, datosGerencia, scoring, nEnc, nCk, MIN_N, evalId });
+}
+  const sel = document.getElementById('integrado-evaluacion-id');
+  if (!sel || sel.options.length > 1) return;
+  sel.innerHTML = '<option value="">Selecciona una evaluación...</option>' +
+    todasEvaluaciones.map(ev =>
+      `<option value="${ev.id}">${ev.empresa?.nombre || '—'} — ${ev.nombre_sesion || 'Sin nombre'} (${formatFecha(ev.fecha)})</option>`
+    ).join('');
+}
+
+async function generarDiagnosticoIntegrado() {
+  const evalId = document.getElementById('integrado-evaluacion-id').value;
+  const resultado = document.getElementById('integrado-resultado');
+  if (!evalId) { mostrarToast('Selecciona una evaluación primero', true); return; }
+
+  resultado.style.display = 'block';
+  resultado.innerHTML = '<div class="loading"><div class="spinner"></div>Generando diagnóstico integrado...</div>';
+
+  // ── Cargar todos los datos ──
+  const ev = todasEvaluaciones.find(e => e.id === evalId);
+  const empresa = ev?.empresa?.nombre || '—';
+
+  // Colaboradores + check-up
+  const { data: cols } = await sb.from('colaboradores').select('id, codigo, sexo, edad, area').eq('evaluacion_id', evalId);
+  const colsArr = cols || [];
+  let ckupArr = [];
+  if (colsArr.length) {
+    const { data: ck } = await sb.from('resultados_checkup')
+      .select('colaborador_id, imc, masa_grasa_pct, masa_muscular_kg, agua_corporal_pct, grasa_visceral, edad_metabolica, circunferencia_cintura_cm, circunferencia_cadera_cm, icc, presion_sistolica, presion_diastolica, glicemia_capilar, semaforo_imc, semaforo_grasa_pct, semaforo_grasa_visceral, semaforo_presion, semaforo_glicemia, peso_kg, talla_cm')
+      .in('colaborador_id', colsArr.map(c => c.id));
+    ckupArr = (ck || []).map(r => {
+      const col = colsArr.find(c => c.id === r.colaborador_id);
+      return { ...r, _area: col?.area, _sexo: col?.sexo };
+    });
+  }
+
+  // Encuesta colaboradores
+  const { data: encColabs } = await sb.from('encuestas').select('id').eq('evaluacion_id', evalId).eq('tipo', 'colaborador');
+  let datosColabs = [];
+  if (encColabs?.length) {
+    const { data: respColabs } = await sb.from('respuestas_encuesta').select('autopercepcion_salud').in('encuesta_id', encColabs.map(e => e.id));
+    datosColabs = (respColabs || []).map(r => { try { return JSON.parse(r.autopercepcion_salud || '{}'); } catch { return {}; } });
+  }
+
+  // Encuesta gerencia
+  const { data: encGer } = await sb.from('encuestas').select('id').eq('evaluacion_id', evalId).eq('tipo', 'gerencia').order('created_at', { ascending: false }).limit(1);
+  let datosGerencia = null;
+  if (encGer?.length) {
+    const { data: respGer } = await sb.from('respuestas_encuesta').select('autopercepcion_salud').eq('encuesta_id', encGer[0].id).limit(1);
+    if (respGer?.length) { try { datosGerencia = JSON.parse(respGer[0].autopercepcion_salud || '{}'); } catch { datosGerencia = {}; } }
+  }
+
+  // ── Calcular scoring ──
+  const MIN_N = 5;
+  const scoring = datosColabs.length >= MIN_N ? NutreteScoring.calcularScoringCompleto(datosColabs) : null;
+  const nEnc = datosColabs.length;
+  const nCk = ckupArr.length;
+
+  // ── Cálculos check-up ──
+  const ck = calcularCkupIntegrado(ckupArr, colsArr);
+
+  // ── Render ──
+  resultado.innerHTML = renderDiagnosticoIntegrado({ ev, empresa, colsArr, ckupArr, ck, datosColabs, datosGerencia, scoring, nEnc, nCk, MIN_N, evalId });
+}
+
+function calcularCkupIntegrado(resultados, colaboradores) {
+  const n = resultados.length;
+  if (!n) return { n: 0 };
+  const p = (fn) => Math.round(resultados.filter(fn).length / n * 100);
+  const prom = (key) => {
+    const vals = resultados.map(r => r[key]).filter(v => v !== null && !isNaN(v));
+    return vals.length ? +(vals.reduce((a,b) => a+b, 0) / vals.length).toFixed(1) : null;
+  };
+
+  // Criterios Lancet 2025 — Rubino et al.
+  // Adiposidad confirmada: ICC ≥ 0.90 H / ≥ 0.85 M  O  cintura ≥ 94 H / ≥ 80 M  O  grasa % elevada
+  const conAdipositad = resultados.filter(r => {
+    const sexo = r._sexo;
+    const icc = r.icc, cintura = r.circunferencia_cintura_cm;
+    const grasa = r.masa_grasa_pct, imc = r.imc;
+    if (imc !== null && imc >= 40) return true;
+    if (sexo === 'masculino') {
+      if (icc >= 0.90) return true;
+      if (cintura >= 94) return true;
+      if (grasa !== null && grasa > 25) return true;
+    } else {
+      if (icc >= 0.85) return true;
+      if (cintura >= 80) return true;
+      if (grasa !== null && grasa > 35) return true;
+    }
+    return false;
+  });
+
+  // Riesgo cardiovascular (Framingham simplificado basado en variables disponibles)
+  const riesgoCV = resultados.filter(r =>
+    (r.semaforo_presion === 'rojo' || r.semaforo_presion === 'amarillo') ||
+    (r.semaforo_glicemia === 'rojo' || r.semaforo_glicemia === 'amarillo') ||
+    (r.semaforo_grasa_visceral === 'rojo') ||
+    (r.icc !== null && r._sexo === 'masculino' && r.icc >= 1.0) ||
+    (r.icc !== null && r._sexo === 'femenino' && r.icc >= 0.90)
+  );
+
+  return {
+    n,
+    promIMC: prom('imc'), promGrasa: prom('masa_grasa_pct'),
+    promMuscular: prom('masa_muscular_kg'), promAgua: prom('agua_corporal_pct'),
+    promVisceral: prom('grasa_visceral'), promICC: prom('icc'),
+    promCintura: prom('circunferencia_cintura_cm'),
+    pctIMCNormal: p(r => r.semaforo_imc === 'verde'),
+    pctIMCAlerta: p(r => r.semaforo_imc === 'amarillo'),
+    pctIMCRiesgo: p(r => r.semaforo_imc === 'rojo'),
+    pctGrasaNormal: p(r => r.semaforo_grasa_pct === 'verde'),
+    pctGrasaAlerta: p(r => r.semaforo_grasa_pct === 'amarillo'),
+    pctGrasaRiesgo: p(r => r.semaforo_grasa_pct === 'rojo'),
+    pctVisceralNormal: p(r => r.semaforo_grasa_visceral === 'verde'),
+    pctVisceralAlerta: p(r => r.semaforo_grasa_visceral === 'amarillo'),
+    pctVisceralRiesgo: p(r => r.semaforo_grasa_visceral === 'rojo'),
+    pctPresionNormal: p(r => r.semaforo_presion === 'verde'),
+    pctPresionAlerta: p(r => r.semaforo_presion === 'amarillo'),
+    pctPresionRiesgo: p(r => r.semaforo_presion === 'rojo'),
+    pctGlicNormal: p(r => r.semaforo_glicemia === 'verde'),
+    pctGlicAlerta: p(r => r.semaforo_glicemia === 'amarillo'),
+    pctGlicRiesgo: p(r => r.semaforo_glicemia === 'rojo'),
+    pctAdipositad: Math.round(conAdipositad.length / n * 100),
+    nAdipositad: conAdipositad.length,
+    pctRiesgoCV: Math.round(riesgoCV.length / n * 100),
+    nRiesgoCV: riesgoCV.length,
+  };
+}
+
+function renderDiagnosticoIntegrado({ ev, empresa, colsArr, ckupArr, ck, datosColabs, datosGerencia, scoring, nEnc, nCk, MIN_N, evalId }) {
+  const fecha = formatFecha(ev?.fecha);
+  const sesion = ev?.nombre_sesion || '';
+  const ger = datosGerencia || {};
+  const s = scoring?.scores || {};
+
+  // Colores
+  const C = { verde:'#009444', voscuro:'#07542F', amarillo:'#e67e22', rojo:'#c0392b', suave:'#5a7060' };
+  const nivelColor = (score) => score >= 75 ? C.verde : score >= 50 ? C.amarillo : C.rojo;
+  const nivelLabel = (score) => score >= 75 ? 'Fortaleza' : score >= 50 ? 'Oportunidad' : 'Brecha';
+  const nivelFondo = (score) => score >= 75 ? '#e8f5ee' : score >= 50 ? '#fef3e8' : '#fdf0ee';
+
+  const categoriaIBIN = (ibin) => {
+    if (ibin >= 80) return { label:'Fortalecido', color:C.voscuro, fondo:'#e8f5ee' };
+    if (ibin >= 65) return { label:'Adecuado', color:C.verde, fondo:'#f0f7f3' };
+    if (ibin >= 50) return { label:'En desarrollo', color:C.amarillo, fondo:'#fef3e8' };
+    if (ibin >= 35) return { label:'Prioritario', color:C.rojo, fondo:'#fdf0ee' };
+    return { label:'Alta prioridad', color:'#8b0000', fondo:'#fce8e8' };
+  };
+
+  // Helpers render
+  const barraSem = (titulo, verde, alerta, riesgo) => `
+    <div style="margin-bottom:16px;">
+      <div style="font-size:13px;font-weight:600;color:${C.voscuro};margin-bottom:6px;">${titulo}</div>
+      <div style="display:flex;height:22px;border-radius:6px;overflow:hidden;background:#f0f0f0;">
+        ${verde ? `<div style="width:${verde}%;background:${C.verde};" title="Normal ${verde}%"></div>` : ''}
+        ${alerta ? `<div style="width:${alerta}%;background:${C.amarillo};" title="Precaución ${alerta}%"></div>` : ''}
+        ${riesgo ? `<div style="width:${riesgo}%;background:${C.rojo};" title="Atención ${riesgo}%"></div>` : ''}
+      </div>
+      <div style="display:flex;gap:14px;margin-top:5px;font-size:11px;color:${C.suave};">
+        <span style="color:${C.voscuro};">● Normal: ${verde}%</span>
+        <span style="color:#a05a00;">● Precaución: ${alerta}%</span>
+        <span style="color:${C.rojo};">● Atención: ${riesgo}%</span>
+      </div>
+    </div>`;
+
+  const barraH = (label, val, color=C.verde) => `
+    <div style="margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;">
+        <span>${label}</span><span style="font-weight:700;color:${color};">${val}%</span>
+      </div>
+      <div style="height:16px;background:#f0f0f0;border-radius:4px;overflow:hidden;">
+        <div style="width:${val}%;height:100%;background:${color};border-radius:4px;"></div>
+      </div>
+    </div>`;
+
+  const kpi = (num, label, color=C.verde) => `
+    <div style="background:rgba(255,255,255,.12);border-radius:8px;padding:14px;text-align:center;">
+      <div style="font-size:26px;font-weight:800;color:${color};">${num}</div>
+      <div style="font-size:11px;color:#a8d5b8;margin-top:3px;">${label}</div>
+    </div>`;
+
+  const gerFila = (label, val) => {
+    if (!val || (Array.isArray(val) && !val.length)) return '';
+    return `<div style="padding:9px 0;border-bottom:1px solid var(--gris-borde);display:flex;gap:12px;align-items:baseline;">
+      <div style="font-size:12px;font-weight:600;color:${C.suave};min-width:200px;flex-shrink:0;">${label}</div>
+      <div style="font-size:13px;color:var(--texto);">${Array.isArray(val) ? val.join(', ') : val}</div>
+    </div>`;
+  };
+
+  // Textos integrados de lectura cruzada
+  const lecturaIntegrada = [];
+  if (scoring && nCk >= MIN_N) {
+    const ibinCat = categoriaIBIN(scoring.ibin);
+    if (ck.pctRiesgoCV > 30 && scoring.ibin >= 55) {
+      lecturaIntegrada.push({ tipo:'discrepancia', dim:'Bienestar percibido vs. indicadores clínicos',
+        texto:`El equipo reporta un bienestar percibido ${ibinCat.label.toLowerCase()} (IBIN ${scoring.ibin}/100), pero el ${ck.pctRiesgoCV}% presenta indicadores clínicos de riesgo cardiovascular. Esta brecha entre percepción y riesgo objetivo es frecuente en etapas preclínicas: los riesgos aún no se manifiestan como malestar subjetivo, lo que refuerza el valor del Check-up como herramienta de detección temprana.` });
+    }
+    if (s.estresRecursos < 55 && ck.pctPresionAlerta + ck.pctPresionRiesgo > 25) {
+      lecturaIntegrada.push({ tipo:'convergencia', dim:'Estrés y presión arterial',
+        texto:`El estrés laboral percibido (${s.estresRecursos}/100) y la proporción de colaboradores con presión arterial elevada (${ck.pctPresionAlerta + ck.pctPresionRiesgo}%) se refuerzan mutuamente. El estrés crónico es uno de los principales factores modificables de la hipertensión. La intervención en esta dimensión tiene impacto directo sobre ambos indicadores.` });
+    }
+    if (s.movimiento < 55 && ck.pctVisceralAlerta + ck.pctVisceralRiesgo > 30) {
+      lecturaIntegrada.push({ tipo:'convergencia', dim:'Sedentarismo y grasa visceral',
+        texto:`El bajo movimiento declarado en la encuesta (${s.movimiento}/100) es consistente con el ${ck.pctVisceralAlerta + ck.pctVisceralRiesgo}% del equipo con grasa visceral en zona de alerta o riesgo. El sedentarismo es el factor modificable con mayor impacto sobre la adiposidad visceral. Una intervención en movimiento tiene efecto directo sobre el riesgo metabólico y cardiovascular.` });
+    }
+  }
+  if (datosGerencia && scoring) {
+    const gerMencEstres = Array.isArray(ger.necesidades_percibidas) && ger.necesidades_percibidas.some(n => n.includes('estres') || n.includes('fatiga'));
+    if (gerMencEstres && s.estresRecursos < 60) {
+      lecturaIntegrada.push({ tipo:'convergencia', dim:'Convergencia gerencia — colaboradores',
+        texto:`Existe convergencia entre la percepción de gerencia (que identifica el estrés entre las principales necesidades) y los resultados de la encuesta de colaboradores (${s.estresRecursos}/100 en la dimensión estrés y recursos). Esta alineación es favorable para la implementación de un programa: hay conciencia organizacional del problema y demanda real del equipo.` });
+    }
+  }
+
+  // Hallazgos automáticos
+  const hallazgos = [];
+  if (scoring) {
+    scoring.dimensionesOrdenadas.filter(d => d.score < 50).slice(0, 2).forEach((d, i) => {
+      hallazgos.push({ num: hallazgos.length+1, titulo: `Brecha en ${d.nombre}`, evidencia: `La dimensión presenta un puntaje de ${d.score}/100 con un interés declarado del ${d.interes}% del equipo.`, implicancia: d.textoDx });
+    });
+  }
+  if (nCk >= MIN_N) {
+    if (ck.pctAdipositad > 40) hallazgos.push({ num: hallazgos.length+1, titulo:'Exceso de adiposidad en el equipo', evidencia:`El ${ck.pctAdipositad}% del equipo presenta criterios de adiposidad elevada según los parámetros Lancet 2025 (Rubino et al.), evaluados mediante ICC, circunferencia de cintura y/o porcentaje de grasa corporal.`, implicancia:'Este hallazgo aumenta el riesgo metabólico y cardiovascular del equipo y es uno de los factores más modificables con intervención nutricional sostenida.' });
+    if (ck.pctRiesgoCV > 30) hallazgos.push({ num: hallazgos.length+1, titulo:'Riesgo cardiovascular en zona de alerta', evidencia:`El ${ck.pctRiesgoCV}% del equipo presenta al menos un indicador cardiovascular alterado (presión arterial, glicemia, grasa visceral o ICC).`, implicancia:'Se recomienda seguimiento médico para los casos identificados y un programa de prevención cardiovascular para el grupo.' });
+  }
+  if (scoring) {
+    const topInteres = scoring.dimensionesOrdenadas.filter(d => d.interes >= 60 && d.score >= 55).slice(0,1);
+    topInteres.forEach(d => {
+      hallazgos.push({ num: hallazgos.length+1, titulo:`Alta disposición al cambio en ${d.nombre.toLowerCase()}`, evidencia:`El ${d.interes}% del equipo señala esta área como prioritaria, con un puntaje base de ${d.score}/100.`, implicancia:'Esta disposición favorable es un factor protector para el éxito de cualquier intervención en esta dimensión.' });
+    });
+  }
+
+  // Recomendaciones
+  const recs = [];
+  if (scoring) {
+    scoring.topIntervenciones.forEach(d => recs.push({ icono: d.icono, titulo: d.recomendacion.titulo, desc: d.recomendacion.desc }));
+  }
+  if (nCk >= MIN_N && ck.pctRiesgoCV > 30)
+    recs.push({ icono:'🩺', titulo:'Seguimiento de indicadores clínicos', desc:'Operativo de salud periódico (Check-up Nútrete) para monitorear la evolución de indicadores cardiovasculares y metabólicos. Derivación médica para colaboradores en zona de atención.' });
+  if (!recs.length)
+    recs.push({ icono:'📈', titulo:'Programa Cultivo de Hábitos', desc:'El equipo presenta indicadores favorables. Un programa de 3 meses consolida los hábitos positivos y previene el deterioro futuro.' });
+
+  // Conclusión dinámica
+  const cat = scoring ? categoriaIBIN(scoring.ibin) : null;
+  const brechasDim = scoring ? scoring.dimensiones.filter(d => d.score < 50).map(d => d.nombre.toLowerCase()) : [];
+  const top3Names = scoring ? scoring.topIntervenciones.slice(0,3).map(d => d.nombre.toLowerCase()) : [];
+  const conclusionTexto = scoring
+    ? `El equipo de ${empresa} presenta un nivel de bienestar ${cat.label.toLowerCase()} (IBIN ${scoring.ibin}/100 · ${nEnc} respuestas).${brechasDim.length ? ` Las principales oportunidades de intervención se concentran en ${brechasDim.slice(0,2).join(' y ')}.` : ' No se identifican brechas críticas en el perfil actual.'}${nCk >= MIN_N ? ` Los indicadores clínicos del Check-up (n=${nCk}) ${ck.pctRiesgoCV > 30 ? `muestran que el ${ck.pctRiesgoCV}% del equipo presenta factores de riesgo cardiovascular, reforzando la necesidad de intervención.` : 'se encuentran mayormente dentro de rangos adecuados.'}` : ''} Se recomienda un programa estructurado${top3Names.length ? ` orientado a ${top3Names.join(', ')}` : ''}, con seguimiento periódico para medir impacto.`
+    : `El equipo de ${empresa} fue evaluado con ${nCk} colaboradores en el Check-up${nEnc ? ` y ${nEnc} respuestas de encuesta` : ''}. ${nEnc < MIN_N ? `Se requieren al menos ${MIN_N} respuestas de encuesta para calcular el IBIN.` : ''}`;
+
+  // ══ RENDER FINAL ══
+  return `
+    <!-- PORTADA -->
+    <div style="background:var(--verde-oscuro);border-radius:12px;padding:36px 28px;margin-bottom:20px;print-color-adjust:exact;">
+      <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#7fc89a;margin-bottom:10px;">Nútrete EIRL · Diagnóstico de Bienestar Integral</div>
+      <div style="font-size:26px;font-weight:800;color:white;margin-bottom:4px;">${empresa}</div>
+      <div style="font-size:15px;color:#a8d5b8;margin-bottom:2px;">${sesion}</div>
+      <div style="font-size:13px;color:#7fc89a;margin-bottom:24px;">${fecha}</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;">
+        ${nCk ? kpi(nCk,'Evaluados Check-up') : ''}
+        ${nEnc ? kpi(nEnc,'Respuestas encuesta') : ''}
+        ${colsArr.length ? kpi(colsArr.length,'Colaboradores totales') : ''}
+        ${datosGerencia ? kpi('✓','Diagnóstico gerencia','#7fc89a') : ''}
+        ${scoring ? kpi(scoring.ibin+'/100','IBIN') : ''}
+      </div>
+    </div>
+
+    <!-- IBIN -->
+    ${scoring ? (() => {
+      const cat = categoriaIBIN(scoring.ibin);
+      return `<div style="background:white;border-radius:12px;border:1px solid var(--gris-borde);padding:24px;margin-bottom:20px;box-shadow:var(--sombra);">
+        <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--verde);margin-bottom:8px;">Índice de Bienestar Integral Nútrete (IBIN)</div>
+        <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;">
+          <div style="text-align:center;">
+            <div style="font-size:56px;font-weight:900;color:${cat.color};line-height:1;">${scoring.ibin}</div>
+            <div style="font-size:12px;color:${C.suave};">/ 100 · ${nEnc} resp.</div>
+          </div>
+          <div style="flex:1;min-width:180px;">
+            <div style="display:inline-block;padding:4px 14px;border-radius:20px;font-size:13px;font-weight:700;background:${cat.fondo};color:${cat.color};margin-bottom:10px;">${cat.label}</div>
+            <div style="height:8px;background:#f0f0f0;border-radius:4px;overflow:hidden;margin-bottom:10px;">
+              <div style="width:${scoring.ibin}%;height:100%;background:${cat.color};border-radius:4px;"></div>
+            </div>
+            <p style="font-size:13px;color:${C.suave};line-height:1.7;margin:0;">${scoring.textoIBIN || ''}</p>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;min-width:160px;">
+            ${['verde','amarillo','rojo'].map(n => {
+              const count = scoring.dimensiones.filter(d => d.nivel === n).length;
+              const lbl = {verde:'Fortalezas',amarillo:'Oportunidades',rojo:'Brechas'}[n];
+              const col = {verde:'#7fc89a',amarillo:'#f5d89a',rojo:'#f5a89a'}[n];
+              return `<div style="background:${n==='verde'?'#e8f5ee':n==='amarillo'?'#fef3e8':'#fdf0ee'};border-radius:8px;padding:8px;text-align:center;">
+                <div style="font-size:20px;font-weight:800;color:${n==='verde'?C.voscuro:n==='amarillo'?C.amarillo:C.rojo};">${count}</div>
+                <div style="font-size:10px;color:${C.suave};">${lbl}</div>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>
+      </div>`;
+    })() : `<div style="background:white;border-radius:12px;border:1px solid var(--gris-borde);padding:20px;margin-bottom:20px;">
+      <p style="color:${C.suave};font-size:13px;">IBIN no disponible — se requieren al menos ${MIN_N} respuestas de encuesta de colaboradores (actual: ${nEnc}).</p>
+    </div>`}
+
+    <!-- 7 DIMENSIONES -->
+    ${scoring ? `
+    <div style="font-size:12px;font-weight:700;color:var(--verde-oscuro);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid var(--gris-borde);">Las 7 dimensiones Nútrete®</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:24px;">
+      ${scoring.dimensiones.map(d => {
+        const c = nivelColor(d.score), f = nivelFondo(d.score), t = nivelLabel(d.score);
+        const cp = {CRÍTICA:C.rojo,ALTA:'#a05a00',MEDIA:'#7d6608',BAJA:C.verde}[d.prioridad?.nivel]||'#aaa';
+        const fp = {CRÍTICA:'#fdf0ee',ALTA:'#fff3e0',MEDIA:'#fef9e7',BAJA:'#e8f5ee'}[d.prioridad?.nivel]||'#f0f0f0';
+        return `<div style="background:white;border-radius:10px;border:1px solid var(--gris-borde);padding:16px;box-shadow:var(--sombra);">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+            <span style="font-size:18px;">${d.icono}</span>
+            <span style="font-size:13px;font-weight:700;flex:1;">${d.nombre}</span>
+            <span style="font-size:22px;font-weight:800;color:${c};">${d.score??'—'}</span>
+          </div>
+          <div style="height:6px;background:#f0f0f0;border-radius:3px;overflow:hidden;margin-bottom:8px;">
+            <div style="width:${d.score||0}%;height:100%;background:${c};border-radius:3px;"></div>
+          </div>
+          <div style="display:flex;gap:5px;flex-wrap:wrap;">
+            <span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;background:${f};color:${c};">${t}</span>
+            <span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;background:${fp};color:${cp};">${d.prioridad?.nivel||'—'}</span>
+            <span style="font-size:10px;padding:2px 7px;border-radius:20px;background:var(--gris-claro);color:${C.suave};">Interés ${d.interes}%</span>
+          </div>
+          ${d.textoDx ? `<p style="font-size:12px;color:${C.suave};line-height:1.5;margin-top:8px;">${d.textoDx}</p>` : ''}
+        </div>`;
+      }).join('')}
+    </div>` : ''}
+
+    <!-- MAPA DE PRIORIDADES -->
+    ${scoring ? `
+    <div style="font-size:12px;font-weight:700;color:var(--verde-oscuro);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid var(--gris-borde);">Mapa de prioridades de intervención</div>
+    <div style="margin-bottom:24px;">
+      ${scoring.dimensionesOrdenadas.map((d, i) => {
+        const cp = {CRÍTICA:C.rojo,ALTA:'#a05a00',MEDIA:'#7d6608',BAJA:C.verde}[d.prioridad?.nivel]||'#aaa';
+        const fp = {CRÍTICA:'#fdf0ee',ALTA:'#fff3e0',MEDIA:'#fef9e7',BAJA:'#e8f5ee'}[d.prioridad?.nivel]||'#f0f0f0';
+        return `<div style="background:white;border-radius:10px;border:1px solid var(--gris-borde);padding:14px 18px;margin-bottom:8px;display:flex;gap:14px;align-items:flex-start;box-shadow:var(--sombra);">
+          <div style="font-size:24px;font-weight:900;color:${i<3?cp:'var(--gris-borde)'};flex-shrink:0;min-width:28px;">${String(i+1).padStart(2,'0')}</div>
+          <div style="flex:1;">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
+              <span style="font-size:14px;font-weight:700;">${d.icono} ${d.nombre}</span>
+              <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:${fp};color:${cp};">${d.prioridad?.nivel}</span>
+              <span style="font-size:11px;color:${C.suave};margin-left:auto;">Score ${d.score}/100 · Interés ${d.interes}%</span>
+            </div>
+            ${d.recomendacion ? `<div style="font-size:13px;color:${C.suave};">→ ${d.recomendacion.titulo}: ${d.recomendacion.desc}</div>` : ''}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>` : ''}
+
+    <!-- QUÉ NECESITAN LOS TRABAJADORES -->
+    ${nEnc >= MIN_N ? (() => {
+      const temasMap = {sueno_pr:'Sueño y descanso',estres_pr:'Manejo del estrés',alimentacion_pr:'Alimentación',actividad_pr:'Actividad física',energia_pr:'Energía',plantas_pr:'Plantas medicinales',aromaterapia_pr:'Aromaterapia',salud_mental_pr:'Salud mental',equilibrio_pr:'Equilibrio vida-trabajo',hidratacion_pr:'Hidratación',digestiva_pr:'Salud digestiva'};
+      const conteo = {};
+      datosColabs.forEach(d => (d.temas_apoyo||[]).forEach(t => { if(temasMap[t]) conteo[t]=(conteo[t]||0)+1; }));
+      const top = Object.entries(conteo).sort((a,b)=>b[1]-a[1]).map(([k,v])=>({label:temasMap[k],pct:Math.round(v/nEnc*100)}));
+      if (!top.length) return '';
+      return `<div style="background:white;border-radius:12px;border:1px solid var(--gris-borde);padding:20px;margin-bottom:20px;box-shadow:var(--sombra);">
+        <div style="font-size:13px;font-weight:700;color:var(--verde-oscuro);margin-bottom:14px;">¿Qué necesitan los trabajadores? — Temas prioritarios declarados</div>
+        ${top.map(t => barraH(t.label, t.pct, t.pct>=50?C.voscuro:t.pct>=30?C.amarillo:'#aaa')).join('')}
+      </div>`;
+    })() : ''}
+
+    <!-- CONTEXTO ORGANIZACIONAL -->
+    ${datosGerencia && Object.keys(datosGerencia).length ? `
+    <div style="background:white;border-radius:12px;border:1px solid var(--gris-borde);padding:20px;margin-bottom:20px;box-shadow:var(--sombra);">
+      <div style="font-size:13px;font-weight:700;color:var(--verde-oscuro);margin-bottom:14px;">Contexto organizacional — Diagnóstico de gerencia</div>
+      ${gerFila('Empresa', ger.org_empresa)}
+      ${gerFila('Contacto / cargo', ger.org_contacto && ger.org_cargo ? `${ger.org_contacto} · ${ger.org_cargo}` : ger.org_contacto)}
+      ${gerFila('Nº trabajadores', ger.num_trabajadores)}
+      ${gerFila('Modalidad', ger.modalidad)}
+      ${gerFila('Programa de bienestar actual', ger.tiene_estrategia)}
+      ${gerFila('Presupuesto disponible', ger.presupuesto_existe)}
+      ${gerFila('Rango presupuestario', ger.presupuesto_rango)}
+      ${gerFila('Acceso SENCE', ger.tiene_sence)}
+      ${gerFila('Necesidades percibidas', ger.necesidades_percibidas)}
+      ${gerFila('Indicadores a mejorar', ger.indicadores_mejorar)}
+      ${gerFila('Pausas activas', ger.pausas_activas)}
+      ${gerFila('Acceso a agua', ger.acceso_agua)}
+      ${gerFila('Casino / cafetería', ger.tipo_casino)}
+      ${gerFila('Ausentismo', ger.ausentismo)}
+      ${gerFila('Definición de éxito', ger.exito_bienestar)}
+    </div>` : ''}
+
+    <!-- CHECK-UP AGREGADO + DIAGNÓSTICO OBESIDAD LANCET 2025 -->
+    ${nCk >= MIN_N ? `
+    <div style="background:white;border-radius:12px;border:1px solid var(--gris-borde);padding:20px;margin-bottom:20px;box-shadow:var(--sombra);">
+      <div style="font-size:13px;font-weight:700;color:var(--verde-oscuro);margin-bottom:6px;">Indicadores de salud — Check-up Nútrete® (n=${nCk})</div>
+      <div style="font-size:11px;color:${C.suave};margin-bottom:16px;font-style:italic;">Resultados presentados de forma exclusivamente agregada. No se incluyen datos individuales.</div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:20px;">
+        ${ck.promIMC ? `<div style="text-align:center;padding:12px;background:var(--gris-claro);border-radius:8px;"><div style="font-size:22px;font-weight:800;color:var(--verde-oscuro);">${ck.promIMC}</div><div style="font-size:11px;color:${C.suave};">IMC promedio</div></div>` : ''}
+        ${ck.promGrasa ? `<div style="text-align:center;padding:12px;background:var(--gris-claro);border-radius:8px;"><div style="font-size:22px;font-weight:800;color:var(--verde-oscuro);">${ck.promGrasa}%</div><div style="font-size:11px;color:${C.suave};">Grasa corporal prom.</div></div>` : ''}
+        ${ck.promMuscular ? `<div style="text-align:center;padding:12px;background:var(--gris-claro);border-radius:8px;"><div style="font-size:22px;font-weight:800;color:var(--verde-oscuro);">${ck.promMuscular} kg</div><div style="font-size:11px;color:${C.suave};">Masa muscular prom.</div></div>` : ''}
+        ${ck.promCintura ? `<div style="text-align:center;padding:12px;background:var(--gris-claro);border-radius:8px;"><div style="font-size:22px;font-weight:800;color:var(--verde-oscuro);">${ck.promCintura} cm</div><div style="font-size:11px;color:${C.suave};">Cintura promedio</div></div>` : ''}
+      </div>
+
+      ${barraSem('IMC — Composición corporal', ck.pctIMCNormal, ck.pctIMCAlerta, ck.pctIMCRiesgo)}
+      ${barraSem('Masa grasa corporal', ck.pctGrasaNormal, ck.pctGrasaAlerta, ck.pctGrasaRiesgo)}
+      ${barraSem('Grasa visceral', ck.pctVisceralNormal, ck.pctVisceralAlerta, ck.pctVisceralRiesgo)}
+      ${barraSem('Presión arterial', ck.pctPresionNormal, ck.pctPresionAlerta, ck.pctPresionRiesgo)}
+      ${barraSem('Glicemia capilar', ck.pctGlicNormal, ck.pctGlicAlerta, ck.pctGlicRiesgo)}
+
+      <!-- DIAGNÓSTICO OBESIDAD CLÍNICA — LANCET 2025 -->
+      <div style="background:#f0f7f3;border:1px solid #c8ebd5;border-radius:10px;padding:18px 20px;margin-top:20px;">
+        <div style="font-size:13px;font-weight:700;color:var(--verde-oscuro);margin-bottom:4px;">Diagnóstico de adiposidad y riesgo cardiovascular</div>
+        <div style="font-size:11px;color:${C.suave};margin-bottom:14px;">Basado en los criterios de la Comisión Lancet Diabetes & Endocrinology 2025 (Rubino et al.) — múltiples medidas de adiposidad corporal además del IMC.</div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+          <div style="background:white;border-radius:8px;padding:14px;text-align:center;border:1px solid var(--gris-borde);">
+            <div style="font-size:28px;font-weight:800;color:${ck.pctAdipositad>=50?C.rojo:ck.pctAdipositad>=30?C.amarillo:C.verde};">${ck.pctAdipositad}%</div>
+            <div style="font-size:12px;font-weight:600;color:var(--verde-oscuro);margin-top:4px;">Con adiposidad elevada</div>
+            <div style="font-size:11px;color:${C.suave};margin-top:2px;">n = ${ck.nAdipositad} de ${nCk} evaluados</div>
+          </div>
+          <div style="background:white;border-radius:8px;padding:14px;text-align:center;border:1px solid var(--gris-borde);">
+            <div style="font-size:28px;font-weight:800;color:${ck.pctRiesgoCV>=40?C.rojo:ck.pctRiesgoCV>=20?C.amarillo:C.verde};">${ck.pctRiesgoCV}%</div>
+            <div style="font-size:12px;font-weight:600;color:var(--verde-oscuro);margin-top:4px;">Con riesgo cardiovascular</div>
+            <div style="font-size:11px;color:${C.suave};margin-top:2px;">n = ${ck.nRiesgoCV} de ${nCk} evaluados</div>
+          </div>
+        </div>
+
+        <div style="font-size:13px;color:${C.suave};line-height:1.7;">
+          ${ck.pctAdipositad >= 50
+            ? `<strong style="color:${C.rojo};">Hallazgo relevante:</strong> El ${ck.pctAdipositad}% del equipo presenta criterios de adiposidad elevada según los parámetros multiparamétricos Lancet 2025 (ICC, circunferencia de cintura y/o porcentaje de grasa corporal). Este nivel de adiposidad se asocia con mayor riesgo de desarrollar obesidad clínica, diabetes tipo 2, hipertensión y enfermedad cardiovascular. Se recomienda intervención nutricional prioritaria.`
+            : ck.pctAdipositad >= 30
+            ? `<strong style="color:${C.amarillo};">Alerta:</strong> El ${ck.pctAdipositad}% del equipo presenta criterios de adiposidad elevada (Lancet 2025). Aunque no es un nivel crítico, la intervención preventiva en esta etapa tiene una probabilidad de éxito significativamente mayor.`
+            : `El ${ck.pctAdipositad}% del equipo presenta criterios de adiposidad elevada (Lancet 2025). Los indicadores de composición corporal son mayormente favorables.`}
+        </div>
+        ${ck.pctRiesgoCV > 0 ? `<div style="font-size:13px;color:${C.suave};line-height:1.7;margin-top:8px;">
+          En cuanto al riesgo cardiovascular, el ${ck.pctRiesgoCV}% presenta al menos un indicador alterado (presión arterial, glicemia, grasa visceral o ICC). ${ck.pctRiesgoCV >= 40 ? 'Esta proporción requiere atención prioritaria y seguimiento médico complementario.' : ck.pctRiesgoCV >= 20 ? 'Se recomienda seguimiento preventivo para los casos identificados.' : 'Se recomienda mantener los controles preventivos periódicos.'}
+        </div>` : ''}
+        <div style="font-size:11px;color:#999;margin-top:10px;font-style:italic;">Rubino F, et al. Definition and diagnostic criteria of clinical obesity. Lancet Diabetes Endocrinol. 2025;13(3):221–262.</div>
+      </div>
+    </div>` : nCk > 0 ? `<div style="background:white;border-radius:12px;border:1px solid var(--gris-borde);padding:16px 20px;margin-bottom:20px;"><p style="color:${C.suave};font-size:13px;">Check-up con ${nCk} evaluados — se requieren al menos ${MIN_N} para mostrar resultados agregados.</p></div>` : ''}
+
+    <!-- ANÁLISIS POR ÁREA -->
+    ${(() => {
+      const areas = [...new Set(colsArr.map(c => c.area).filter(Boolean))];
+      if (areas.length <= 1 || !scoring) return '';
+      const areasData = areas.map(area => {
+        const idxArea = colsArr.map((c,i) => c.area === area ? i : -1).filter(i => i >= 0);
+        const datArea = idxArea.map(i => datosColabs[i]).filter(Boolean);
+        if (datArea.length < MIN_N) return { area, oculto: true, n: datArea.length };
+        const sc = NutreteScoring.calcularScoringCompleto(datArea);
+        return { area, n: datArea.length, ibin: sc?.ibin, oculto: false };
+      });
+      const visibles = areasData.filter(a => !a.oculto);
+      if (!visibles.length) return '';
+      return `<div style="background:white;border-radius:12px;border:1px solid var(--gris-borde);padding:20px;margin-bottom:20px;box-shadow:var(--sombra);">
+        <div style="font-size:13px;font-weight:700;color:var(--verde-oscuro);margin-bottom:6px;">Análisis por área / departamento</div>
+        <div style="font-size:11px;color:${C.suave};margin-bottom:14px;font-style:italic;">Solo se muestran áreas con al menos ${MIN_N} participantes.</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;">
+          ${areasData.map(a => {
+            if (a.oculto) return `<div style="background:var(--gris-claro);border-radius:8px;padding:14px;text-align:center;">
+              <div style="font-size:12px;font-weight:700;color:var(--verde-oscuro);margin-bottom:4px;">${a.area}</div>
+              <div style="font-size:11px;color:${C.suave};">No disponible<br>(n=${a.n}, min ${MIN_N})</div>
+            </div>`;
+            const ibinCat = (() => {
+              if (a.ibin >= 80) return {label:'Fortalecido',color:C.voscuro,fondo:'#e8f5ee'};
+              if (a.ibin >= 65) return {label:'Adecuado',color:C.verde,fondo:'#f0f7f3'};
+              if (a.ibin >= 50) return {label:'En desarrollo',color:C.amarillo,fondo:'#fef3e8'};
+              return {label:'Prioritario',color:C.rojo,fondo:'#fdf0ee'};
+            })();
+            return `<div style="background:white;border-radius:8px;padding:14px;text-align:center;border:1px solid var(--gris-borde);">
+              <div style="font-size:12px;font-weight:700;color:var(--verde-oscuro);margin-bottom:6px;">${a.area}</div>
+              <div style="font-size:24px;font-weight:800;color:${ibinCat.color};">${a.ibin??'—'}</div>
+              <div style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:${ibinCat.fondo};color:${ibinCat.color};display:inline-block;">${ibinCat.label}</div>
+              <div style="font-size:11px;color:${C.suave};margin-top:4px;">n = ${a.n}</div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>`;
+    })()}
+
+    <!-- LECTURA INTEGRADA -->
+    ${lecturaIntegrada.length ? `
+    <div style="background:white;border-radius:12px;border:1px solid var(--gris-borde);padding:20px;margin-bottom:20px;box-shadow:var(--sombra);">
+      <div style="font-size:13px;font-weight:700;color:var(--verde-oscuro);margin-bottom:14px;">Lectura integrada — Encuesta + Gerencia + Check-up</div>
+      ${lecturaIntegrada.map(l => {
+        const estilos = {
+          convergencia: {borde:C.verde, fondo:'#f0f7f3', color:C.voscuro},
+          discrepancia:  {borde:C.amarillo, fondo:'#fff8f0', color:'#a05a00'},
+          alerta:        {borde:C.rojo, fondo:'#fdf0ee', color:C.rojo},
+          informacion:   {borde:'#bbb', fondo:'var(--gris-claro)', color:C.suave},
+        }[l.tipo] || {borde:'#bbb',fondo:'#f0f0f0',color:'#555'};
+        return `<div style="border-left:4px solid ${estilos.borde};background:${estilos.fondo};border-radius:0 8px 8px 0;padding:14px 18px;margin-bottom:10px;">
+          <div style="font-size:11px;font-weight:700;color:${estilos.color};text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">${l.dim}</div>
+          <div style="font-size:13px;color:${C.suave};line-height:1.7;">${l.texto}</div>
+        </div>`;
+      }).join('')}
+    </div>` : ''}
+
+    <!-- HALLAZGOS -->
+    ${hallazgos.length ? `
+    <div style="background:white;border-radius:12px;border:1px solid var(--gris-borde);padding:20px;margin-bottom:20px;box-shadow:var(--sombra);">
+      <div style="font-size:13px;font-weight:700;color:var(--verde-oscuro);margin-bottom:14px;">Principales hallazgos</div>
+      ${hallazgos.map(h => `
+        <div style="background:var(--gris-claro);border-radius:8px;padding:14px 18px;margin-bottom:10px;">
+          <div style="font-size:11px;font-weight:700;color:${C.suave};text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Hallazgo ${String(h.num).padStart(2,'0')}</div>
+          <div style="font-size:14px;font-weight:700;color:var(--verde-oscuro);margin-bottom:4px;">${h.titulo}</div>
+          <div style="font-size:13px;color:${C.suave};margin-bottom:4px;">${h.evidencia}</div>
+          <div style="font-size:13px;color:var(--texto);font-style:italic;">${h.implicancia}</div>
+        </div>`).join('')}
+    </div>` : ''}
+
+    <!-- RECOMENDACIONES -->
+    <div style="background:white;border-radius:12px;border:1px solid var(--gris-borde);padding:20px;margin-bottom:20px;box-shadow:var(--sombra);">
+      <div style="font-size:13px;font-weight:700;color:var(--verde-oscuro);margin-bottom:14px;">Recomendaciones de programa — Nútrete EIRL</div>
+      ${recs.map(r => `
+        <div style="display:flex;gap:14px;padding:12px 0;border-bottom:1px solid var(--gris-borde);">
+          <div style="font-size:24px;flex-shrink:0;">${r.icono}</div>
+          <div>
+            <div style="font-size:14px;font-weight:700;color:var(--verde-oscuro);margin-bottom:3px;">${r.titulo}</div>
+            <div style="font-size:13px;color:${C.suave};line-height:1.65;">${r.desc}</div>
+          </div>
+        </div>`).join('')}
+    </div>
+
+    <!-- PROGRAMA SUGERIDO -->
+    <div style="background:white;border-radius:12px;border:1px solid var(--gris-borde);padding:20px;margin-bottom:20px;box-shadow:var(--sombra);">
+      <div style="font-size:13px;font-weight:700;color:var(--verde-oscuro);margin-bottom:6px;">Programa sugerido — 4 fases</div>
+      <div style="font-size:12px;color:${C.suave};margin-bottom:16px;">Prioridades: ${top3Names.join(', ') || 'consolidación de hábitos'}</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;">
+        ${[['🔍','Detecta','Presentación de resultados y sensibilización del equipo. El diagnóstico como punto de partida.'],['⚡','Recarga','Intervenciones sobre las principales brechas. Talleres prácticos y experienciales.'],['🌱','Activa','Actividades prácticas, microacciones y estrategias aplicables en la jornada laboral.'],['📊','Reevalúa','Nueva medición posterior al programa para medir impacto y ajustar la siguiente etapa.']].map(([ic,nom,desc]) =>
+          `<div style="background:var(--gris-claro);border-radius:8px;padding:16px;text-align:center;">
+            <div style="font-size:26px;margin-bottom:8px;">${ic}</div>
+            <div style="font-size:14px;font-weight:700;color:var(--verde-oscuro);margin-bottom:4px;">${nom}</div>
+            <div style="font-size:12px;color:${C.suave};">${desc}</div>
+          </div>`).join('')}
+      </div>
+    </div>
+
+    <!-- CONCLUSIÓN EJECUTIVA -->
+    <div style="background:var(--verde-oscuro);border-radius:12px;padding:28px;margin-bottom:20px;print-color-adjust:exact;">
+      <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#7fc89a;margin-bottom:10px;">Conclusión ejecutiva</div>
+      <p style="font-size:14px;color:#a8d5b8;line-height:1.8;margin:0;">${conclusionTexto}</p>
+    </div>
+
+    <!-- FOOTER -->
+    <div style="text-align:center;font-size:12px;color:${C.suave};padding:16px 0;border-top:1px solid var(--gris-borde);">
+      <strong>Nútrete EIRL</strong> · Natacha González Sepúlveda, Nutricionista · RUT 76.702.594-7<br>
+      El Método Nútrete® desarrolla el Criterio para la Salud · Ñuñoa, Santiago de Chile · www.nutrete.cl
+    </div>
+
+    <div style="display:flex;gap:10px;margin-top:16px;">
+      <button class="btn btn-verde" onclick="window.print()">🖨 Imprimir / PDF</button>
+      <button class="btn btn-outline" onclick="window.open('informes.html?evaluacion_id=${evalId}','_blank')">↗ Ver en página completa</button>
+    </div>
+  `;
+}
+
 // RESPALDO DE ENCUESTAS
 // ══════════════════════════════════════════════
 async function cargarSelectRespaldo() {
