@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Diagnóstico de Bienestar Integral — Nútrete®</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="scoring.js"></script>
+<script src="js/informes.js"></script>
+<style>
+:root {
+  --verde: #009444; --verde-oscuro: #07542F; --cafe: #6A3F15;
+  --gris-claro: #f4f6f4; --gris-borde: #e0e8e3;
+  --texto: #1a2e1f; --texto-suave: #5a7060;
+  --rojo: #c0392b; --amarillo: #e67e22;
+  --sombra: 0 2px 12px rgba(7,84,47,0.08);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f4f6f4;color:var(--texto);font-size:15px;line-height:1.6}
+
+/* ESTADO CARGA */
+.cargando{min-height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;background:var(--verde-oscuro);}
+.cargando .spinner{width:48px;height:48px;border:4px solid rgba(255,255,255,0.2);border-top-color:white;border-radius:50%;animation:spin .8s linear infinite}
+.cargando p{color:#a8d5b8;font-size:14px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.error-estado{min-height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;padding:32px;text-align:center}
+.error-estado h2{color:var(--rojo)}
+.error-estado p{color:var(--texto-suave);font-size:14px}
+
+/* INFORME */
+#informe{display:none}
+.topbar{background:var(--verde-oscuro);padding:12px 32px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;print-color-adjust:exact}
+.topbar-marca{font-size:16px;font-weight:800;color:white;letter-spacing:-0.3px}
+.topbar-marca span{color:#7fc89a}
+.topbar-acciones{display:flex;gap:8px}
+.btn-print{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:white;padding:7px 16px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer}
+.btn-print:hover{background:rgba(255,255,255,.25)}
+
+/* PORTADA */
+.portada{background:var(--verde-oscuro);padding:64px 32px 56px;text-align:center;print-color-adjust:exact}
+.portada-tag{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#7fc89a;margin-bottom:16px}
+.portada h1{font-size:36px;font-weight:800;color:white;margin-bottom:8px;line-height:1.2}
+.portada-empresa{font-size:20px;color:#a8d5b8;margin-bottom:6px}
+.portada-fecha{font-size:14px;color:#7fc89a}
+.portada-stats{display:flex;justify-content:center;gap:24px;margin-top:32px;flex-wrap:wrap}
+.portada-stat{background:rgba(255,255,255,.12);border-radius:10px;padding:16px 24px;text-align:center;min-width:120px}
+.portada-stat .num{font-size:28px;font-weight:800;color:white}
+.portada-stat .lbl{font-size:11px;color:#a8d5b8;margin-top:4px}
+
+/* CONTENIDO */
+.wrap{max-width:900px;margin:0 auto;padding:40px 24px 80px}
+.seccion{margin-bottom:40px}
+.seccion-titulo{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--verde);font-weight:700;margin-bottom:6px}
+.seccion-h2{font-size:22px;font-weight:800;color:var(--verde-oscuro);margin-bottom:20px;padding-bottom:12px;border-bottom:2px solid var(--verde)}
+.card{background:white;border-radius:12px;padding:24px;box-shadow:var(--sombra);border:1px solid var(--gris-borde);margin-bottom:16px}
+
+/* KPI IBIN */
+.ibin-card{background:var(--verde-oscuro);border-radius:14px;padding:32px;display:flex;align-items:center;gap:28px;flex-wrap:wrap;margin-bottom:24px;print-color-adjust:exact}
+.ibin-score{text-align:center;min-width:110px}
+.ibin-score .num{font-size:64px;font-weight:900;color:white;line-height:1}
+.ibin-score .den{font-size:14px;color:#a8d5b8}
+.ibin-info{flex:1;min-width:200px}
+.ibin-categoria{display:inline-block;padding:4px 14px;border-radius:20px;font-size:13px;font-weight:700;margin-bottom:10px}
+.ibin-texto{font-size:14px;color:#a8d5b8;line-height:1.7}
+.ibin-barra{height:8px;background:rgba(255,255,255,.2);border-radius:4px;overflow:hidden;margin:10px 0}
+.ibin-barra-fill{height:100%;background:#7fc89a;border-radius:4px;transition:width 1s}
+
+/* DIMENSIONES */
+.dim-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:640px){.dim-grid{grid-template-columns:1fr}}
+.dim-card{background:white;border-radius:10px;padding:18px;border:1px solid var(--gris-borde);box-shadow:var(--sombra)}
+.dim-header{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.dim-icono{font-size:20px}
+.dim-nombre{font-size:14px;font-weight:700;color:var(--texto);flex:1}
+.dim-score{font-size:24px;font-weight:800}
+.dim-barra{height:6px;background:#f0f0f0;border-radius:3px;overflow:hidden;margin-bottom:8px}
+.dim-barra-fill{height:100%;border-radius:3px;transition:width .8s}
+.dim-tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.tag{font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px}
+.dim-texto{font-size:12px;color:var(--texto-suave);line-height:1.5}
+
+/* PRIORIDADES */
+.prioridad-item{display:flex;gap:16px;padding:16px;background:white;border-radius:10px;border:1px solid var(--gris-borde);margin-bottom:10px;align-items:flex-start;box-shadow:var(--sombra)}
+.prioridad-num{font-size:28px;font-weight:900;color:var(--gris-borde);flex-shrink:0;line-height:1}
+.prioridad-badge{font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;display:inline-block;margin-bottom:6px}
+.prioridad-nombre{font-size:15px;font-weight:700;color:var(--texto);margin-bottom:4px}
+.prioridad-meta{font-size:12px;color:var(--texto-suave);display:flex;gap:12px;flex-wrap:wrap}
+.prioridad-rec{font-size:13px;color:var(--texto-suave);margin-top:6px}
+
+/* BARRAS HORIZONTALES */
+.barra-h{margin-bottom:10px}
+.barra-h-label{display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px}
+.barra-h-track{height:18px;background:#f0f0f0;border-radius:4px;overflow:hidden}
+.barra-h-fill{height:100%;border-radius:4px;background:var(--verde);transition:width .6s}
+
+/* SEMÁFORO CLÍNICO */
+.semaforo-bloque{margin-bottom:20px}
+.semaforo-titulo{font-size:13px;font-weight:700;color:var(--verde-oscuro);margin-bottom:10px}
+.semaforo-barras{display:flex;height:28px;border-radius:6px;overflow:hidden;margin-bottom:6px}
+.semaforo-leyenda{display:flex;gap:16px;font-size:11px;color:var(--texto-suave)}
+.sem-verde{background:#009444}
+.sem-amarillo{background:#e67e22}
+.sem-rojo{background:#c0392b}
+
+/* LECTURA INTEGRADA */
+.lectura-item{padding:16px 20px;border-radius:10px;margin-bottom:12px;border-left:4px solid}
+.lectura-convergencia{background:#f0f7f3;border-color:var(--verde)}
+.lectura-discrepancia{background:#fff8f0;border-color:var(--amarillo)}
+.lectura-alerta{background:#fdf0ee;border-color:var(--rojo)}
+.lectura-informacion{background:var(--gris-claro);border-color:var(--gris-borde)}
+.lectura-dim{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.lectura-texto{font-size:14px;color:var(--texto-suave);line-height:1.7}
+
+/* HALLAZGOS */
+.hallazgo-item{background:white;border-radius:10px;padding:18px 20px;border:1px solid var(--gris-borde);margin-bottom:12px;box-shadow:var(--sombra)}
+.hallazgo-num{font-size:11px;font-weight:700;color:var(--texto-suave);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.hallazgo-titulo{font-size:15px;font-weight:700;color:var(--verde-oscuro);margin-bottom:6px}
+.hallazgo-evidencia{font-size:13px;color:var(--texto-suave);margin-bottom:4px}
+.hallazgo-implicancia{font-size:13px;color:var(--texto);font-style:italic}
+
+/* RECOMENDACIONES */
+.rec-item{display:flex;gap:16px;padding:16px;background:white;border-radius:10px;border:1px solid var(--gris-borde);margin-bottom:10px;box-shadow:var(--sombra)}
+.rec-icono{font-size:28px;flex-shrink:0}
+.rec-titulo{font-size:14px;font-weight:700;color:var(--verde-oscuro);margin-bottom:4px}
+.rec-desc{font-size:13px;color:var(--texto-suave);line-height:1.65}
+
+/* PROGRAMA */
+.programa-fases{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-top:16px}
+.fase{background:white;border-radius:10px;padding:18px;border:1px solid var(--gris-borde);text-align:center;box-shadow:var(--sombra)}
+.fase-icono{font-size:28px;margin-bottom:8px}
+.fase-nombre{font-size:14px;font-weight:700;color:var(--verde-oscuro);margin-bottom:4px}
+.fase-desc{font-size:12px;color:var(--texto-suave)}
+
+/* GERENCIA */
+.ger-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:640px){.ger-grid{grid-template-columns:1fr}}
+.ger-dato{padding:10px 14px;background:var(--gris-claro);border-radius:8px}
+.ger-label{font-size:11px;font-weight:700;color:var(--texto-suave);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px}
+.ger-valor{font-size:13px;color:var(--texto)}
+
+/* ÁREAS */
+.area-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
+.area-card{background:white;border-radius:10px;padding:16px;border:1px solid var(--gris-borde);text-align:center;box-shadow:var(--sombra)}
+.area-nombre{font-size:12px;font-weight:700;color:var(--verde-oscuro);margin-bottom:8px}
+.area-ibin{font-size:28px;font-weight:800;color:var(--verde);margin-bottom:2px}
+.area-n{font-size:11px;color:var(--texto-suave)}
+
+/* CONCLUSIÓN */
+.conclusion-box{background:var(--verde-oscuro);border-radius:12px;padding:28px;print-color-adjust:exact}
+.conclusion-titulo{font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:#7fc89a;margin-bottom:10px}
+.conclusion-texto{font-size:15px;color:#a8d5b8;line-height:1.8}
+
+/* FOOTER */
+.footer-informe{background:var(--verde-oscuro);padding:24px 32px;text-align:center;font-size:12px;color:#7fc89a;margin-top:40px;print-color-adjust:exact}
+.footer-informe strong{color:white}
+
+/* PRIVACIDAD */
+.privacidad-nota{background:#f0f7f3;border:1px solid #c8ebd5;border-radius:8px;padding:12px 16px;font-size:12px;color:var(--texto-suave);margin-bottom:20px}
+
+/* PRINT */
+@media print {
+  .topbar,.btn-print{display:none!important}
+  body{background:white}
+  .wrap{padding:0 0 20px}
+  .portada{padding:40px 24px 32px}
+  .ibin-card,.portada,.conclusion-box,.footer-informe{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .seccion{page-break-inside:avoid}
+  .card,.dim-card,.prioridad-item,.hallazgo-item,.rec-item{box-shadow:none;border:1px solid #ddd}
+}
+@media(max-width:640px){
+  .portada h1{font-size:24px}
+  .ibin-card{flex-direction:column;align-items:center;text-align:center}
+}
+</style>
+</head>
+<body>
+
+<!-- Estado: cargando -->
+<div class="cargando" id="estado-cargando">
+  <div class="spinner"></div>
+  <p>Cargando diagnóstico...</p>
+</div>
+
+<!-- Estado: error -->
+<div class="error-estado" id="estado-error" style="display:none">
+  <h2>No fue posible cargar el diagnóstico</h2>
+  <p id="error-mensaje">Verifica el enlace o contacta a Nútrete.</p>
+</div>
+
+<!-- INFORME COMPLETO -->
+<div id="informe">
+
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="topbar-marca">Nútrete<span>®</span> Diagnóstico</div>
+    <div class="topbar-acciones">
+      <button class="btn-print" onclick="window.print()">🖨 Imprimir / PDF</button>
+    </div>
+  </div>
+
+  <!-- PORTADA -->
+  <div class="portada">
+    <div class="portada-tag">Diagnóstico de Bienestar Integral — Nútrete®</div>
+    <h1 id="portada-empresa">—</h1>
+    <div class="portada-empresa" id="portada-evaluacion">—</div>
+    <div class="portada-fecha" id="portada-fecha">—</div>
+    <div class="portada-stats" id="portada-stats"></div>
+  </div>
+
+  <div class="wrap">
+
+    <!-- NOTA PRIVACIDAD -->
+    <div class="privacidad-nota">
+      🔒 Este informe contiene exclusivamente información agregada y anonimizada. No incluye datos individuales de ningún colaborador. Elaborado por Nátacha González Sepúlveda, Nutricionista · Nútrete EIRL · RUT 76.702.594-7.
+    </div>
+
+    <!-- 1. RESUMEN EJECUTIVO -->
+    <div class="seccion">
+      <div class="seccion-titulo">Resumen ejecutivo</div>
+      <div class="seccion-h2">Índice de Bienestar Integral Nútrete</div>
+      <div class="ibin-card" id="ibin-card">
+        <div class="ibin-score">
+          <div class="num" id="ibin-num">—</div>
+          <div class="den">/ 100</div>
+        </div>
+        <div class="ibin-info">
+          <div class="ibin-categoria" id="ibin-categoria">—</div>
+          <div class="ibin-barra"><div class="ibin-barra-fill" id="ibin-barra-fill" style="width:0%"></div></div>
+          <div class="ibin-texto" id="ibin-texto">—</div>
+        </div>
+      </div>
+      <div class="card" id="resumen-texto-card" style="display:none">
+        <p id="resumen-texto" style="font-size:14px;color:var(--texto-suave);line-height:1.75;"></p>
+      </div>
+    </div>
+
+    <!-- 2. RESULTADOS POR DIMENSIÓN -->
+    <div class="seccion" id="sec-dimensiones" style="display:none">
+      <div class="seccion-titulo">Resultados por dimensión</div>
+      <div class="seccion-h2">Las 7 dimensiones Nútrete®</div>
+      <div class="dim-grid" id="dim-grid"></div>
+    </div>
+
+    <!-- 3. MAPA DE PRIORIDADES -->
+    <div class="seccion" id="sec-prioridades" style="display:none">
+      <div class="seccion-titulo">Prioridades de intervención</div>
+      <div class="seccion-h2">¿Dónde intervenir primero?</div>
+      <div id="prioridades-lista"></div>
+    </div>
+
+    <!-- 4. QUÉ NECESITAN LOS TRABAJADORES -->
+    <div class="seccion" id="sec-necesidades" style="display:none">
+      <div class="seccion-titulo">Voz del equipo</div>
+      <div class="seccion-h2">¿Qué necesitan los trabajadores?</div>
+      <div class="card">
+        <p style="font-size:13px;color:var(--texto-suave);margin-bottom:16px;">Temas seleccionados como prioritarios por los colaboradores (% de selección):</p>
+        <div id="necesidades-lista"></div>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <div style="font-size:13px;font-weight:700;color:var(--verde-oscuro);margin-bottom:12px;">Formatos de participación preferidos</div>
+        <div id="formatos-lista"></div>
+      </div>
+    </div>
+
+    <!-- 5. CONTEXTO ORGANIZACIONAL (GERENCIA) -->
+    <div class="seccion" id="sec-gerencia" style="display:none">
+      <div class="seccion-titulo">Contexto organizacional</div>
+      <div class="seccion-h2">Diagnóstico de gerencia</div>
+      <div class="card" id="gerencia-contenido"></div>
+    </div>
+
+    <!-- 6. CHECK-UP AGREGADO -->
+    <div class="seccion" id="sec-checkup" style="display:none">
+      <div class="seccion-titulo">Indicadores de salud</div>
+      <div class="seccion-h2">Composición corporal y salud — Check-up Nútrete®</div>
+      <div class="privacidad-nota">Los datos clínicos se presentan de forma exclusivamente agregada. No se muestran resultados individuales.</div>
+      <div class="card" id="checkup-contenido"></div>
+    </div>
+
+    <!-- 7. ANÁLISIS POR ÁREA -->
+    <div class="seccion" id="sec-areas" style="display:none">
+      <div class="seccion-titulo">Análisis por área</div>
+      <div class="seccion-h2">Resultados por departamento</div>
+      <div class="privacidad-nota">Solo se muestran áreas con al menos <strong id="min-group-txt">5</strong> participantes.</div>
+      <div class="area-grid" id="areas-grid"></div>
+    </div>
+
+    <!-- 8. LECTURA INTEGRADA -->
+    <div class="seccion" id="sec-lectura" style="display:none">
+      <div class="seccion-titulo">Lectura integrada Nútrete</div>
+      <div class="seccion-h2">Encuesta + Gerencia + Check-up</div>
+      <div id="lectura-lista"></div>
+    </div>
+
+    <!-- 9. PRINCIPALES HALLAZGOS -->
+    <div class="seccion" id="sec-hallazgos" style="display:none">
+      <div class="seccion-titulo">Análisis</div>
+      <div class="seccion-h2">Principales hallazgos</div>
+      <div id="hallazgos-lista"></div>
+    </div>
+
+    <!-- 10. RECOMENDACIONES -->
+    <div class="seccion" id="sec-recomendaciones" style="display:none">
+      <div class="seccion-titulo">Propuesta Nútrete®</div>
+      <div class="seccion-h2">Recomendaciones de programa</div>
+      <div id="recomendaciones-lista"></div>
+    </div>
+
+    <!-- 11. PROGRAMA SUGERIDO -->
+    <div class="seccion" id="sec-programa" style="display:none">
+      <div class="seccion-titulo">Programa recomendado</div>
+      <div class="seccion-h2">Propuesta de intervención</div>
+      <div class="card" id="programa-prioridades"></div>
+      <div class="programa-fases">
+        <div class="fase">
+          <div class="fase-icono">🔍</div>
+          <div class="fase-nombre">Detecta</div>
+          <div class="fase-desc">Presentación de resultados y sensibilización del equipo.</div>
+        </div>
+        <div class="fase">
+          <div class="fase-icono">⚡</div>
+          <div class="fase-nombre">Recarga</div>
+          <div class="fase-desc">Intervenciones sobre las principales brechas identificadas.</div>
+        </div>
+        <div class="fase">
+          <div class="fase-icono">🌱</div>
+          <div class="fase-nombre">Activa</div>
+          <div class="fase-desc">Actividades prácticas y estrategias aplicables en la jornada.</div>
+        </div>
+        <div class="fase">
+          <div class="fase-icono">📊</div>
+          <div class="fase-nombre">Reevalúa</div>
+          <div class="fase-desc">Nueva medición posterior al programa para medir impacto.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 12. CONCLUSIÓN -->
+    <div class="seccion" id="sec-conclusion" style="display:none">
+      <div class="seccion-titulo">Conclusión ejecutiva</div>
+      <div class="conclusion-box">
+        <div class="conclusion-titulo">Síntesis del diagnóstico</div>
+        <div class="conclusion-texto" id="conclusion-texto">—</div>
+      </div>
+    </div>
+
+  </div><!-- /wrap -->
+
+  <!-- FOOTER -->
+  <div class="footer-informe">
+    <strong>Nútrete EIRL</strong> · Natacha González Sepúlveda, Nutricionista · RUT 76.702.594-7<br>
+    <span style="font-size:11px">El Método Nútrete® desarrolla el Criterio para la Salud · Ñuñoa, Santiago de Chile · www.nutrete.cl</span>
+  </div>
+
+</div><!-- /informe -->
+
+<script>
+// ══════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════
+const sb = supabase.createClient(NutreteInformes.CONFIG.SUPABASE_URL, NutreteInformes.CONFIG.SUPABASE_KEY);
+const { MIN_GROUP_SIZE, categoriaIBIN, cargarDatosInforme, calcularCheckupAgregado,
+        generarRecomendaciones, generarHallazgos, generarLecturaIntegrada } = NutreteInformes;
+
+document.getElementById('min-group-txt').textContent = MIN_GROUP_SIZE;
+
+// Helpers
+const $ = id => document.getElementById(id);
+const show = id => $(id).style.display = '';
+const pct = (c, n) => n ? Math.round(c/n*100) : 0;
+
+function mostrarError(msg) {
+  $('estado-cargando').style.display = 'none';
+  $('estado-error').style.display = 'flex';
+  $('error-mensaje').textContent = msg;
+}
+
+function formatFecha(f) {
+  if (!f) return '—';
+  return new Date(f+'T12:00:00').toLocaleDateString('es-CL',{day:'numeric',month:'long',year:'numeric'});
+}
+
+// Barra horizontal
+function barraH(label, valor, color='var(--verde)', extra='') {
+  return `<div class="barra-h">
+    <div class="barra-h-label"><span>${label}</span><span style="font-weight:700;color:${color};">${valor}%${extra}</span></div>
+    <div class="barra-h-track"><div class="barra-h-fill" style="width:${valor}%;background:${color};"></div></div>
+  </div>`;
+}
+
+// Barra semáforo clínico
+function barraSemaforo(titulo, verde, amarillo, rojo, prom) {
+  const promTexto = prom ? ` · Promedio: ${prom}` : '';
+  return `<div class="semaforo-bloque">
+    <div class="semaforo-titulo">${titulo}${promTexto}</div>
+    <div class="semaforo-barras">
+      <div class="sem-verde" style="width:${verde}%;title='Normal: ${verde}%'"></div>
+      <div class="sem-amarillo" style="width:${amarillo}%"></div>
+      <div class="sem-rojo" style="width:${rojo}%"></div>
+    </div>
+    <div class="semaforo-leyenda">
+      <span style="color:#07542F;">● Normal: ${verde}%</span>
+      <span style="color:#a05a00;">● Precaución: ${amarillo}%</span>
+      <span style="color:#c0392b;">● Atención: ${rojo}%</span>
+    </div>
+  </div>`;
+}
+
+// ══════════════════════════════════════════════
+// RENDER PRINCIPAL
+// ══════════════════════════════════════════════
+async function renderInforme() {
+  const params = new URLSearchParams(location.search);
+  const evaluacionId = params.get('evaluacion_id');
+
+  if (!evaluacionId) {
+    mostrarError('No se especificó una evaluación. Verifica el enlace.');
+    return;
+  }
+
+  const datos = await cargarDatosInforme(sb, evaluacionId);
+
+  if (datos.error) {
+    mostrarError(datos.error);
+    return;
+  }
+
+  const { evaluacion, empresa, colaboradores, resultadosCheckup,
+          datosColaboradores, scoring, datosGerencia } = datos;
+
+  const nColabs = colaboradores.length;
+  const nEnc = datosColaboradores.length;
+  const nCheckup = resultadosCheckup.length;
+  const fechaEv = formatFecha(evaluacion.fecha);
+
+  // ── PORTADA ──
+  $('portada-empresa').textContent = empresa?.nombre || '—';
+  $('portada-evaluacion').textContent = evaluacion.nombre_sesion || '';
+  $('portada-fecha').textContent = fechaEv;
+  $('portada-stats').innerHTML = [
+    nCheckup ? `<div class="portada-stat"><div class="num">${nCheckup}</div><div class="lbl">Evaluados Check-up</div></div>` : '',
+    nEnc ? `<div class="portada-stat"><div class="num">${nEnc}</div><div class="lbl">Respuestas encuesta</div></div>` : '',
+    nColabs ? `<div class="portada-stat"><div class="num">${nColabs}</div><div class="lbl">Colaboradores totales</div></div>` : '',
+    datosGerencia ? `<div class="portada-stat"><div class="num">✓</div><div class="lbl">Diagnóstico gerencia</div></div>` : '',
+  ].join('');
+
+  // ── IBIN ──
+  if (scoring) {
+    const cat = categoriaIBIN(scoring.ibin);
+    $('ibin-num').textContent = scoring.ibin ?? '—';
+    $('ibin-num').style.color = 'white';
+    $('ibin-categoria').textContent = cat.label;
+    $('ibin-categoria').style.background = cat.fondo;
+    $('ibin-categoria').style.color = cat.color;
+    $('ibin-barra-fill').style.width = (scoring.ibin || 0) + '%';
+    $('ibin-texto').textContent = scoring.textoIBIN || '';
+
+    // Resumen textual dinámico
+    const brechas = scoring.dimensiones.filter(d => d.score < 50).map(d => d.nombre.toLowerCase());
+    const fortalezas = scoring.dimensiones.filter(d => d.score >= 75).map(d => d.nombre.toLowerCase());
+    const resumenTexto = `El diagnóstico de ${empresa?.nombre || 'la organización'} muestra un nivel de bienestar ${cat.label.toLowerCase()} (IBIN ${scoring.ibin}/100), basado en ${nEnc} respuestas de colaboradores.${brechas.length ? ` Las principales oportunidades de intervención se concentran en ${brechas.slice(0,2).join(' y ')}.` : ' El equipo presenta indicadores favorables en todas las dimensiones.'}${fortalezas.length ? ` El ${fortalezas[0]} constituye una fortaleza relativa del equipo.` : ''}`;
+    $('resumen-texto').textContent = resumenTexto;
+    show('resumen-texto-card');
+
+    // ── DIMENSIONES ──
+    show('sec-dimensiones');
+    const coloresDim = { verde:'#009444', amarillo:'#e67e22', rojo:'#c0392b', sin_datos:'#aaa' };
+    const fondosDim = { verde:'#e8f5ee', amarillo:'#fef3e8', rojo:'#fdf0ee', sin_datos:'#f0f0f0' };
+    const textoDim = { verde:'Fortaleza', amarillo:'Oportunidad', rojo:'Brecha', sin_datos:'Sin datos' };
+    const colorPrioridad = { CRÍTICA:'#c0392b', ALTA:'#a05a00', MEDIA:'#7d6608', BAJA:'#07542F' };
+    const fondoPrioridad = { CRÍTICA:'#fdf0ee', ALTA:'#fff3e0', MEDIA:'#fef9e7', BAJA:'#e8f5ee' };
+
+    $('dim-grid').innerHTML = scoring.dimensiones.map(d => {
+      const c = coloresDim[d.nivel] || '#aaa';
+      const f = fondosDim[d.nivel] || '#f0f0f0';
+      const t = textoDim[d.nivel] || '—';
+      const cp = colorPrioridad[d.prioridad?.nivel] || '#aaa';
+      const fp = fondoPrioridad[d.prioridad?.nivel] || '#f0f0f0';
+      return `<div class="dim-card">
+        <div class="dim-header">
+          <div class="dim-icono">${d.icono}</div>
+          <div class="dim-nombre">${d.nombre}</div>
+          <div class="dim-score" style="color:${c};">${d.score ?? '—'}</div>
+        </div>
+        <div class="dim-barra"><div class="dim-barra-fill" style="width:${d.score||0}%;background:${c};"></div></div>
+        <div class="dim-tags">
+          <span class="tag" style="background:${f};color:${c};">${t}</span>
+          <span class="tag" style="background:${fp};color:${cp};">${d.prioridad?.nivel || '—'}</span>
+          <span class="tag" style="background:var(--gris-claro);color:var(--texto-suave);">Interés ${d.interes}%</span>
+        </div>
+        ${d.textoDx ? `<div class="dim-texto">${d.textoDx}</div>` : ''}
+      </div>`;
+    }).join('');
+
+    // ── PRIORIDADES ──
+    show('sec-prioridades');
+    $('prioridades-lista').innerHTML = scoring.dimensionesOrdenadas.map((d, i) => {
+      const cp = colorPrioridad[d.prioridad?.nivel] || '#aaa';
+      const fp = fondoPrioridad[d.prioridad?.nivel] || '#f0f0f0';
+      return `<div class="prioridad-item">
+        <div class="prioridad-num" style="color:${i<3?cp:'var(--gris-borde)'};">${String(i+1).padStart(2,'0')}</div>
+        <div style="flex:1;">
+          <div class="prioridad-badge" style="background:${fp};color:${cp};">${d.prioridad?.nivel || '—'}</div>
+          <div class="prioridad-nombre">${d.icono} ${d.nombre}</div>
+          <div class="prioridad-meta">
+            <span>Score: <strong>${d.score ?? '—'}/100</strong></span>
+            <span>Brecha: <strong>${d.prioridad?.nivelBrecha || '—'}</strong></span>
+            <span>Interés equipo: <strong>${d.interes}%</strong></span>
+          </div>
+          ${d.recomendacion ? `<div class="prioridad-rec">→ ${d.recomendacion.titulo}: ${d.recomendacion.desc}</div>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+
+    // ── NECESIDADES ──
+    if (nEnc >= CONFIG.MIN_GROUP_SIZE) {
+      show('sec-necesidades');
+      const temasMap = {
+        sueno_pr:'Sueño y descanso', estres_pr:'Manejo del estrés',
+        alimentacion_pr:'Alimentación saludable', actividad_pr:'Actividad física',
+        energia_pr:'Energía y vitalidad', plantas_pr:'Plantas medicinales',
+        aromaterapia_pr:'Aromaterapia', salud_mental_pr:'Salud mental',
+        cardiovascular_pr:'Prevención cardiovascular', equilibrio_pr:'Equilibrio vida-trabajo',
+        hidratacion_pr:'Hidratación', digestiva_pr:'Salud digestiva',
+      };
+      const conteoTemas = {};
+      datosColaboradores.forEach(d => {
+        (d.temas_apoyo || []).forEach(t => { if(temasMap[t]) conteoTemas[t] = (conteoTemas[t]||0)+1; });
+      });
+      const temasOrdenados = Object.entries(conteoTemas)
+        .sort((a,b) => b[1]-a[1])
+        .map(([k,v]) => ({ label: temasMap[k], pct: pct(v, nEnc) }));
+
+      $('necesidades-lista').innerHTML = temasOrdenados.map(t =>
+        barraH(t.label, t.pct, t.pct >= 50 ? '#07542F' : t.pct >= 30 ? '#e67e22' : '#aaa')
+      ).join('') || '<p style="color:var(--texto-suave);font-size:13px;">Sin datos disponibles.</p>';
+
+      // Formatos
+      const formatosMap = {
+        charlas:'Charlas breves', talleres_prac:'Talleres prácticos',
+        webinars:'Webinars', presencial:'Actividades presenciales',
+        desafios:'Desafíos de bienestar', material:'Material educativo',
+        autocuidado_fmt:'Actividades de autocuidado', evaluaciones_fmt:'Evaluaciones individuales',
+        programa_continuo:'Programas de varias semanas',
+      };
+      const conteoFormatos = {};
+      datosColaboradores.forEach(d => {
+        (d.formato_preferido || []).forEach(f => { if(formatosMap[f]) conteoFormatos[f] = (conteoFormatos[f]||0)+1; });
+      });
+      const formatosOrdenados = Object.entries(conteoFormatos)
+        .sort((a,b) => b[1]-a[1])
+        .map(([k,v]) => ({ label: formatosMap[k], pct: pct(v, nEnc) }));
+
+      $('formatos-lista').innerHTML = formatosOrdenados.map(f => barraH(f.label, f.pct)).join('')
+        || '<p style="color:var(--texto-suave);font-size:13px;">Sin datos disponibles.</p>';
+    }
+
+    // ── LECTURA INTEGRADA ──
+    const ckupAgregado = calcularCheckupAgregado(resultadosCheckup);
+    const lecturas = generarLecturaIntegrada(scoring, ckupAgregado, datosGerencia);
+    if (lecturas.length) {
+      show('sec-lectura');
+      const tipoClase = { convergencia:'lectura-convergencia', discrepancia:'lectura-discrepancia', alerta:'lectura-alerta', informacion:'lectura-informacion' };
+      const tipoColor = { convergencia:'#07542F', discrepancia:'#a05a00', alerta:'#c0392b', informacion:'#5a7060' };
+      $('lectura-lista').innerHTML = lecturas.map(l => `
+        <div class="lectura-item lectura-${l.tipo}">
+          <div class="lectura-dim" style="color:${l.tipo==='convergencia'?'#07542F':l.tipo==='alerta'?'#c0392b':l.tipo==='discrepancia'?'#a05a00':'#5a7060'};">${l.dimension}</div>
+          <div class="lectura-texto">${l.texto}</div>
+        </div>`).join('');
+    }
+
+    // ── HALLAZGOS ──
+    const hallazgos = generarHallazgos(scoring, ckupAgregado, datosGerencia, datosColaboradores);
+    if (hallazgos.length) {
+      show('sec-hallazgos');
+      $('hallazgos-lista').innerHTML = hallazgos.map(h => `
+        <div class="hallazgo-item">
+          <div class="hallazgo-num">Hallazgo ${String(h.numero).padStart(2,'0')}</div>
+          <div class="hallazgo-titulo">${h.hallazgo}</div>
+          <div class="hallazgo-evidencia">${h.evidencia}</div>
+          <div class="hallazgo-implicancia">${h.implicancia}</div>
+        </div>`).join('');
+    }
+
+    // ── RECOMENDACIONES ──
+    const recs = generarRecomendaciones(scoring, ckupAgregado);
+    if (recs.length) {
+      show('sec-recomendaciones');
+      $('recomendaciones-lista').innerHTML = recs.map(r => `
+        <div class="rec-item">
+          <div class="rec-icono">${r.icono}</div>
+          <div>
+            <div class="rec-titulo">${r.titulo}</div>
+            <div class="rec-desc">${r.desc}</div>
+          </div>
+        </div>`).join('');
+    }
+
+    // ── PROGRAMA ──
+    show('sec-programa');
+    const top3 = scoring.topIntervenciones.slice(0,3);
+    $('programa-prioridades').innerHTML = `
+      <div style="font-size:13px;font-weight:700;color:var(--verde-oscuro);margin-bottom:12px;">Prioridades del programa:</div>
+      ${top3.map((d,i) => `<div style="display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--gris-borde);${i===top3.length-1?'border:none;':''}">
+        <div style="background:var(--verde-oscuro);color:white;font-size:11px;font-weight:800;border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${i+1}</div>
+        <div style="font-size:14px;font-weight:600;color:var(--texto);">${d.icono} ${d.nombre}</div>
+        <div style="margin-left:auto;font-size:12px;color:var(--texto-suave);">${d.score}/100</div>
+      </div>`).join('')}
+      ${top3.length === 0 ? '<p style="color:var(--texto-suave);font-size:13px;">El equipo presenta un perfil favorable. Se recomienda un programa de consolidación de hábitos.</p>' : ''}`;
+
+    // ── CONCLUSIÓN ──
+    show('sec-conclusion');
+    const cat2 = categoriaIBIN(scoring.ibin);
+    const brechas2 = scoring.dimensiones.filter(d=>d.score<50);
+    const fortalezas2 = scoring.dimensiones.filter(d=>d.score>=75);
+    $('conclusion-texto').textContent =
+      `El equipo de ${empresa?.nombre || 'la organización'} presenta un nivel de bienestar ${cat2.label.toLowerCase()} con un IBIN de ${scoring.ibin}/100. ` +
+      (brechas2.length ? `Las dimensiones que requieren atención prioritaria son ${brechas2.map(d=>d.nombre.toLowerCase()).join(', ')}, donde se concentran las principales oportunidades de mejora. ` : 'No se identifican brechas críticas en el perfil actual. ') +
+      (fortalezas2.length ? `Como fortaleza, ${fortalezas2.map(d=>d.nombre.toLowerCase()).join(' y ')} muestran resultados positivos que deben sostenerse. ` : '') +
+      `Se recomienda un programa estructurado orientado a ${top3.length ? top3.map(d=>d.nombre.toLowerCase()).join(', ') : 'la consolidación del bienestar'}, con seguimiento periódico para medir impacto.`;
+
+    // ── ÁREAS ──
+    const areas = [...new Set(colaboradores.map(c => c.area).filter(Boolean))];
+    if (areas.length > 1) {
+      const areasConDatos = areas.map(area => {
+        const colsArea = colaboradores.filter(c => c.area === area);
+        const idsArea = colsArea.map(c => c.id);
+        const ckArea = resultadosCheckup.filter(r => idsArea.includes(r.colaborador_id));
+        const datosArea = datosColaboradores.filter((_, i) => {
+          const colab = colaboradores[i];
+          return colab && colab.area === area;
+        });
+        if (datosArea.length < MIN_GROUP_SIZE) return { area, oculto: true, n: datosArea.length };
+        const scoringArea = NutreteScoring.calcularScoringCompleto(datosArea);
+        return { area, n: datosArea.length, ibin: scoringArea?.ibin, oculto: false };
+      });
+
+      const areasVisibles = areasConDatos.filter(a => !a.oculto);
+      if (areasVisibles.length > 0) {
+        show('sec-areas');
+        $('areas-grid').innerHTML = areasConDatos.map(a => {
+          if (a.oculto) return `<div class="area-card">
+            <div class="area-nombre">${a.area}</div>
+            <div style="font-size:11px;color:var(--texto-suave);">No disponible por criterios de privacidad (n=${a.n})</div>
+          </div>`;
+          const cat = categoriaIBIN(a.ibin);
+          return `<div class="area-card">
+            <div class="area-nombre">${a.area}</div>
+            <div class="area-ibin" style="color:${cat.color};">${a.ibin ?? '—'}</div>
+            <div style="font-size:10px;padding:2px 8px;border-radius:20px;background:${cat.fondo};color:${cat.color};font-weight:700;display:inline-block;">${cat.label}</div>
+            <div class="area-n">n = ${a.n}</div>
+          </div>`;
+        }).join('');
+      }
+    }
+
+  } else if (nEnc < MIN_GROUP_SIZE && nEnc > 0) {
+    $('ibin-num').textContent = nEnc;
+    $('ibin-texto').textContent = `Se recibieron ${nEnc} respuesta(s), pero se requieren al menos ${MIN_GROUP_SIZE} para calcular el IBIN con representatividad estadística.`;
+    $('ibin-categoria').textContent = 'Muestra insuficiente';
+  } else {
+    $('ibin-num').textContent = '—';
+    $('ibin-texto').textContent = 'No hay datos de encuesta de colaboradores disponibles para esta evaluación.';
+    $('ibin-categoria').textContent = 'Sin datos';
+  }
+
+  // ── CHECK-UP AGREGADO ──
+  if (resultadosCheckup.length >= MIN_GROUP_SIZE) {
+    // Enriquecer con área del colaborador
+    const colsMap = {};
+    colaboradores.forEach(c => { colsMap[c.id] = c; });
+    const resultadosEnriq = resultadosCheckup.map(r => ({ ...r, _area: colsMap[r.colaborador_id]?.area }));
+    const ck = calcularCheckupAgregado(resultadosEnriq);
+
+    show('sec-checkup');
+    $('checkup-contenido').innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:24px;">
+        <div style="text-align:center;padding:14px;background:var(--gris-claro);border-radius:8px;">
+          <div style="font-size:26px;font-weight:800;color:var(--verde);">${ck.n}</div>
+          <div style="font-size:11px;color:var(--texto-suave);">Colaboradores evaluados</div>
+        </div>
+        ${ck.promIMC ? `<div style="text-align:center;padding:14px;background:var(--gris-claro);border-radius:8px;">
+          <div style="font-size:26px;font-weight:800;color:var(--verde-oscuro);">${ck.promIMC}</div>
+          <div style="font-size:11px;color:var(--texto-suave);">IMC promedio</div>
+        </div>` : ''}
+        ${ck.promGrasa ? `<div style="text-align:center;padding:14px;background:var(--gris-claro);border-radius:8px;">
+          <div style="font-size:26px;font-weight:800;color:var(--verde-oscuro);">${ck.promGrasa}%</div>
+          <div style="font-size:11px;color:var(--texto-suave);">Grasa corporal promedio</div>
+        </div>` : ''}
+        ${ck.promMuscular ? `<div style="text-align:center;padding:14px;background:var(--gris-claro);border-radius:8px;">
+          <div style="font-size:26px;font-weight:800;color:var(--verde-oscuro);">${ck.promMuscular} kg</div>
+          <div style="font-size:11px;color:var(--texto-suave);">Masa muscular promedio</div>
+        </div>` : ''}
+      </div>
+      ${barraSemaforo('IMC — Índice de Masa Corporal', ck.pctIMCNormal, ck.pctIMCAlerta, ck.pctIMCRiesgo, ck.promIMC)}
+      ${barraSemaforo('Masa grasa corporal', ck.pctGrasaNormal, ck.pctGrasaAlerta, ck.pctGrasaRiesgo, ck.promGrasa ? ck.promGrasa+'%' : null)}
+      ${barraSemaforo('Grasa visceral', ck.pctVisceralNormal, ck.pctVisceralAlerta, ck.pctVisceralRiesgo, ck.promVisceral ? 'Nivel '+ck.promVisceral : null)}
+      ${barraSemaforo('Presión arterial', ck.pctPresionNormal, ck.pctPresionAlerta||0, ck.pctPresionRiesgo||0)}
+      ${barraSemaforo('Glicemia capilar', ck.pctGlicNormal, ck.pctGlicAlerta, ck.pctGlicRiesgo)}
+      <div style="font-size:12px;color:var(--texto-suave);margin-top:12px;font-style:italic;">⚠ Los indicadores clínicos son orientativos y no reemplazan el diagnóstico médico. Se recomienda derivación médica para colaboradores con valores en zona de atención.</div>`;
+  } else if (resultadosCheckup.length > 0) {
+    show('sec-checkup');
+    $('checkup-contenido').innerHTML = `<p style="color:var(--texto-suave);font-size:13px;">Se evaluaron ${resultadosCheckup.length} colaborador(es), pero se requieren al menos ${MIN_GROUP_SIZE} para mostrar resultados agregados con representatividad.</p>`;
+  }
+
+  // ── GERENCIA ──
+  if (datosGerencia && Object.keys(datosGerencia).length > 0) {
+    show('sec-gerencia');
+    const ger = datosGerencia;
+    const fila = (label, val) => {
+      if (!val || (Array.isArray(val) && !val.length)) return '';
+      const txt = Array.isArray(val) ? val.join(', ') : val;
+      return `<div class="ger-dato"><div class="ger-label">${label}</div><div class="ger-valor">${txt}</div></div>`;
+    };
+    $('gerencia-contenido').innerHTML = `
+      <div class="ger-grid">
+        ${fila('Empresa', ger.org_empresa)}
+        ${fila('Contacto', ger.org_contacto ? `${ger.org_contacto}${ger.org_cargo ? ' · '+ger.org_cargo : ''}` : null)}
+        ${fila('Nº trabajadores', ger.num_trabajadores)}
+        ${fila('Modalidad', ger.modalidad)}
+        ${fila('Tipos de turno', ger.tipos_turno)}
+        ${fila('Rango etario', ger.rango_etario)}
+        ${fila('Programa de bienestar actual', ger.tiene_estrategia)}
+        ${fila('Presupuesto', ger.presupuesto_existe)}
+        ${fila('Liderazgo del bienestar', ger.lider_bienestar)}
+        ${fila('Acceso SENCE', ger.tiene_sence)}
+        ${fila('Casino / alimentación', ger.tipo_casino)}
+        ${fila('Pausas activas', ger.pausas_activas)}
+        ${fila('Acceso a agua', ger.acceso_agua)}
+        ${fila('Ausentismo', ger.ausentismo)}
+        ${fila('Participación previa', ger.participacion_prev)}
+        ${fila('Necesidades percibidas', ger.necesidades_percibidas)}
+        ${fila('Indicadores a mejorar', ger.indicadores_mejorar)}
+        ${fila('Definición de éxito', ger.exito_bienestar)}
+      </div>`;
+  }
+
+  // Mostrar informe
+  $('estado-cargando').style.display = 'none';
+  $('informe').style.display = 'block';
+}
+
+renderInforme();
+</script>
+</body>
+</html>

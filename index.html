@@ -1610,6 +1610,7 @@ async function cargarEvaluaciones() {
       <td>
         <div class="acciones">
           <button class="btn btn-outline btn-pequeño" onclick="irCheckup('${ev.id}')">Check-up</button>
+          <button class="btn btn-outline btn-pequeño" onclick="window.open('informes.html?evaluacion_id=${ev.id}','_blank')">📊 Informe</button>
           ${rolActual === 'admin' ? `<button class="btn btn-verde btn-pequeño" onclick="completarEvaluacion('${ev.id}')">Completar</button>` : ''}
         </div>
       </td>
