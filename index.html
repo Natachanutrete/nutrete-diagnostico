@@ -3489,6 +3489,8 @@ async function generarDiagnosticoIntegrado() {
 
   resultado.innerHTML = renderDiagnosticoIntegrado({ ev, empresa, colsArr, ckupArr, ck, datosColabs, datosGerencia, scoring, nEnc, nCk, MIN_N, evalId });
 }
+
+function llenarSelectorIntegrado() {
   const sel = document.getElementById('integrado-evaluacion-id');
   if (!sel || sel.options.length > 1) return;
   sel.innerHTML = '<option value="">Selecciona una evaluación...</option>' +
