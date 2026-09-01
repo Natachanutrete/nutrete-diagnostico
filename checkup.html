@@ -268,8 +268,8 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 // Parámetros URL
 const params = new URLSearchParams(location.search);
 const evalId = params.get('eval');
-const colId  = params.get('col');
-const resId  = params.get('res');
+let colId  = params.get('col');
+let resId  = params.get('res');
 
 // Variables clínicas
 const composicion = [
@@ -497,8 +497,7 @@ async function guardarEnSupabase() {
   const sexoStr = sexoVal==='F'?'femenino':sexoVal==='M'?'masculino':'no_indica';
 
   // Si no hay colaborador, crearlo primero
-  let colIdActual = colId;
-  if(!colIdActual) {
+  if(!colId) {
     const { data: nuevoCol, error: colErr } = await sb.from('colaboradores').insert({
       evaluacion_id: evalId,
       codigo: document.getElementById('codigo').value.trim()||null,
@@ -511,9 +510,9 @@ async function guardarEnSupabase() {
       mostrarToast('Error al crear colaborador: '+(colErr?.message||''), true);
       return;
     }
-    colIdActual = nuevoCol.id;
+    colId = nuevoCol.id;
     // Actualizar URL sin recargar
-    const newUrl = `${location.pathname}?eval=${evalId}&col=${colIdActual}`;
+    const newUrl = `${location.pathname}?eval=${evalId}&col=${colId}`;
     history.replaceState(null, '', newUrl);
     mostrarToast('Colaborador creado ✓ Guardando ficha...');
   } else {
@@ -523,7 +522,7 @@ async function guardarEnSupabase() {
       area:   document.getElementById('area').value.trim()||null,
       sexo:   sexoStr,
       edad:   parseInt(document.getElementById('edad').value)||null,
-    }).eq('id', colIdActual);
+    }).eq('id', colId);
   }
 
   const imcEl = document.getElementById('val-imc');
@@ -541,7 +540,7 @@ async function guardarEnSupabase() {
   };
 
   const resultData = {
-    colaborador_id:         colIdActual,
+    colaborador_id: colId,
     peso_kg:                parseFloat(document.getElementById('val-peso')?.value)||null,
     talla_cm:               parseFloat(document.getElementById('val-talla')?.value)||null,
     imc:                    isNaN(imcVal)?null:imcVal,
